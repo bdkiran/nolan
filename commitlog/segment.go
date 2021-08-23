@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
+
+	logger "github.com/bdkiran/nolan/utils"
 )
 
 const (
@@ -79,7 +80,7 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 	ind := &index{
 		path: indexPath,
 	}
-	log.Println("opening file", ind.path)
+	logger.Info.Println("opening file", ind.path)
 	indder, err := os.OpenFile(ind.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return seg, err
@@ -89,9 +90,11 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 	seg.index = ind
 
 	if ind.indexFile == nil {
-		log.Println("Pointer is nil")
+		logger.Error.Println("Pointer is nil")
 		return seg, errors.New("pointer to file is nil")
 	}
+
+	seg.index.loadIndex()
 	return seg, nil
 }
 
@@ -106,28 +109,43 @@ func (seg *segment) write(message []byte) (int, error) {
 	return numOfBytes, nil
 }
 
-func (seg *segment) read() (string, error) {
-	if seg.log == nil {
-		log.Println("Pointer is nil")
-		return "", errors.New("pointer to file is nil")
+func (seg *segment) read(offset int64, total int32) (string, error) {
+	_, err := seg.log.Seek(offset, 0)
+	if err != nil {
+		logger.Error.Println(err)
+		return "", err
 	}
-	seg.index.loadIndex()
+	b2 := make([]byte, total)
+	n2, err := seg.reader.Read(b2)
+	if err != nil {
+		logger.Error.Println(err)
+		return "", err
+	}
+	return string(b2[:n2]), nil
+}
+
+func (seg *segment) readAll() error {
+	if seg.log == nil {
+		logger.Error.Println("Pointer is nil")
+		return errors.New("pointer to file is nil")
+	}
+	//seg.index.loadIndex()
 	for _, ent := range seg.index.entries {
 		_, err := seg.log.Seek(int64(ent.Start), 0)
 		if err != nil {
-			log.Println("Here", err)
-			return "", err
+			logger.Error.Println(err)
+			return err
 		}
 		b2 := make([]byte, ent.Total)
 		n2, err := seg.reader.Read(b2)
 		if err != nil {
-			log.Println("here2", err)
-			return "", err
+			logger.Error.Println(err)
+			return err
 		}
-		log.Println("Reading segment: ", string(b2[:n2]))
+		logger.Info.Println("Reading segment: ", string(b2[:n2]))
 	}
 
-	return "", nil
+	return nil
 }
 
 func (s *segment) logPath() string {

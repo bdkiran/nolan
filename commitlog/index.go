@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"log"
 	"os"
+
+	logger "github.com/bdkiran/nolan/utils"
 )
 
 type index struct {
@@ -14,27 +15,32 @@ type index struct {
 	indexFile *os.File
 }
 
+type entry struct {
+	Start int32
+	Total int32
+}
+
 func (ind *index) addEntry(position int, totalBytes int) {
 	ent := entry{
 		Start: int32(position),
 		Total: int32(totalBytes),
 	}
 	ind.entries = append(ind.entries, ent)
-	log.Println(ent)
+	logger.Info.Println(ent)
 	b := new(bytes.Buffer)
 	if err := binary.Write(b, binary.BigEndian, ent); err != nil {
-		log.Panicln(err)
+		logger.Error.Panicln(err)
 	}
-	log.Println(b.Bytes())
-	log.Println(len(b.Bytes()))
+	logger.Info.Println(b.Bytes())
+	logger.Info.Println(len(b.Bytes()))
 
 	ind.indexFile.Write(b.Bytes())
 }
 
 func (ind *index) loadIndex() {
-	log.Println("Reading index..")
+	logger.Info.Println("Reading index..")
 	if ind.indexFile == nil {
-		log.Println("Pointer is nil")
+		logger.Error.Println("Pointer is nil")
 		return
 	}
 	ent := entry{}
@@ -47,22 +53,16 @@ func (ind *index) loadIndex() {
 			if err == io.EOF {
 				break
 			} else {
-				log.Fatal("Unexpected read error: ", err)
+				logger.Error.Fatal("Unexpected read error: ", err)
 			}
 		}
 		buffer := bytes.NewBuffer(data)
 		err = binary.Read(buffer, binary.BigEndian, &ent)
 		if err != nil {
-			log.Fatal("binary read failed", err)
+			logger.Error.Fatal("binary read failed", err)
 		}
 		ind.entries = append(ind.entries, ent)
 	}
-	log.Println(len(ind.entries))
-	log.Printf("%v\n", ind.entries)
-	//log.Printf("%v\n", ind)
-}
-
-type entry struct {
-	Start int32
-	Total int32
+	logger.Info.Println(len(ind.entries))
+	logger.Info.Printf("%v\n", ind.entries)
 }
