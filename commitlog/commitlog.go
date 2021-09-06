@@ -78,6 +78,8 @@ func (cl *Commitlog) Append(message []byte) error {
 	}
 	_, err := cl.segments[len(cl.segments)-1].write(message)
 	if err != nil {
+		//Check for error if too many bytes in the segment -> then split
+		cl.split()
 		return err
 	}
 	return nil
@@ -110,5 +112,12 @@ func (cl *Commitlog) loadSegments() {
 		}
 		cl.segments = append(cl.segments, seg)
 	}
+}
+
+func (cl *Commitlog) split() {
+	logger.Info.Println("Spliting segment")
+	//Get the active segment
+	// Get the total number of entries
+	// pass in the new number of entries
 
 }

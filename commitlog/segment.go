@@ -129,7 +129,7 @@ func (seg *segment) readAll() error {
 		logger.Error.Println("Pointer is nil")
 		return errors.New("pointer to file is nil")
 	}
-	//seg.index.loadIndex()
+
 	for _, ent := range seg.index.entries {
 		_, err := seg.log.Seek(int64(ent.Start), 0)
 		if err != nil {
