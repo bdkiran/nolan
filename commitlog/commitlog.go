@@ -2,6 +2,7 @@ package commitlog
 
 import (
 	"os"
+	"sort"
 	"strings"
 	"sync"
 
@@ -37,30 +38,6 @@ func New(path string) (*Commitlog, error) {
 	return &cl, nil
 }
 
-func (cl *Commitlog) ReadLatestEntry() {
-	cl.mu.Lock()
-	defer cl.mu.Unlock()
-	newestSeg := cl.segments[len(cl.segments)-1]
-	lastEntry := newestSeg.index.entries[len(newestSeg.index.entries)-1]
-	latest, err := newestSeg.read(int64(lastEntry.Start), lastEntry.Total)
-	if err != nil {
-		logger.Error.Println(err)
-	}
-	logger.Info.Println(latest)
-}
-
-/*
-	Reads everything written to the commit log, probably should be used to just debug
-*/
-func (cl *Commitlog) ReadAll() {
-	cl.mu.Lock()
-	defer cl.mu.Unlock()
-	logger.Info.Println("Reading total segments: ", len(cl.segments))
-	for _, seg := range cl.segments {
-		seg.readAll()
-	}
-}
-
 /*
 	Append appends a new entry to the commitlog
 */
@@ -88,36 +65,104 @@ func (cl *Commitlog) Append(message []byte) error {
 /*
 	loadSegments loads all of the segments from disk into memory to read
 */
-func (cl *Commitlog) loadSegments() {
+func (cl *Commitlog) loadSegments() error {
 	files, err := os.ReadDir(cl.path)
 	if err != nil {
 		logger.Error.Fatal("Unable to read directory: ", err)
 	}
-	var segmentFileName string
-	var indexFileName string
+
+	filesStrings := []string{}
+	for _, file := range files {
+		filesStrings = append(filesStrings, file.Name())
+	}
+	sort.Strings(filesStrings)
 
 	//TODO: Support multiple segments!!
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), logSuffix) {
-			segmentFileName = cl.path + "/" + f.Name()
-		} else if strings.HasSuffix(f.Name(), indexSuffix) {
-			indexFileName = cl.path + "/" + f.Name()
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), logSuffix) {
+			//Log file
+			corespondingIndexFile := strings.Replace(file.Name(), logSuffix, indexSuffix, 1)
+			isPresentValue := sort.SearchStrings(filesStrings, corespondingIndexFile)
+			if isPresentValue == len(filesStrings) {
+				if err := os.Remove(file.Name()); err != nil {
+					return err
+				}
+			} else {
+				seg, err := loadSegment(corespondingIndexFile, file.Name())
+				if err != nil {
+					logger.Error.Fatal(err)
+				}
+				cl.segments = append(cl.segments, seg)
+			}
+
+		} else if strings.HasSuffix(file.Name(), indexSuffix) {
+			corespondingLogFile := strings.Replace(file.Name(), indexSuffix, logSuffix, 1)
+			isPresentValue := sort.SearchStrings(filesStrings, corespondingLogFile)
+			if isPresentValue == len(filesStrings) {
+				if err := os.Remove(file.Name()); err != nil {
+					return err
+				}
+			} else {
+				seg, err := loadSegment(file.Name(), corespondingLogFile)
+				if err != nil {
+					logger.Error.Fatal(err)
+				}
+				cl.segments = append(cl.segments, seg)
+			}
 		}
 	}
+	return nil
 	//TODO: Do correct checks on the files
-	if indexFileName != "" && segmentFileName != "" {
-		seg, err := loadSegment(indexFileName, segmentFileName)
-		if err != nil {
-			logger.Error.Fatal(err)
-		}
-		cl.segments = append(cl.segments, seg)
-	}
+	// if indexFileName != "" && segmentFileName != "" {
+	// 	seg, err := loadSegment(indexFileName, segmentFileName)
+	// 	if err != nil {
+	// 		logger.Error.Fatal(err)
+	// 	}
+	// 	cl.segments = append(cl.segments, seg)
+	// }
 }
 
-func (cl *Commitlog) split() {
+func (cl *Commitlog) split() error {
+	cl.mu.Lock()
+	segment, err := newSegment(cl.path)
+	if err != nil {
+		return err
+	}
 	logger.Info.Println("Spliting segment")
 	//Get the active segment
 	// Get the total number of entries
 	// pass in the new number of entries
 
+	cl.segments = append(cl.segments, segment)
+
+	return nil
+
+}
+
+/* Helper/Debugger functions....*/
+/*
+Not sure how useful this actually is..
+*/
+func (cl *Commitlog) ReadLatestEntry() {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	newestSeg := cl.segments[len(cl.segments)-1]
+	lastEntry := newestSeg.index.entries[len(newestSeg.index.entries)-1]
+	latest, err := newestSeg.read(int64(lastEntry.Start), lastEntry.Total)
+	if err != nil {
+		logger.Error.Println(err)
+	}
+	logger.Info.Println(latest)
+}
+
+/*
+	Reads everything written to the commit log, probably should be used to just debug
+*/
+func (cl *Commitlog) ReadAll() {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	logger.Info.Println("Reading total segments: ", len(cl.segments))
+	for _, seg := range cl.segments {
+		seg.readAll()
+	}
 }

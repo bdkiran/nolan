@@ -13,25 +13,25 @@ import (
 const (
 	logSuffix   = ".log"
 	indexSuffix = ".index"
-	fileFormat  = "%010d%s"
+	fileFormat  = "%05d%s"
 )
 
 type segment struct {
-	writer        io.Writer
-	reader        io.Reader
-	log           *os.File
-	index         *index
-	path          string
-	position      int
-	maxBytes      int
-	partitionPath string
+	writer   io.Writer
+	reader   io.Reader
+	log      *os.File
+	index    *index
+	path     string
+	position int
+	maxBytes int
+	file     string
 }
 
 func newSegment(directory string) (*segment, error) {
 	seg := &segment{
-		maxBytes:      1000,
-		position:      0,
-		partitionPath: directory,
+		maxBytes: 1000,
+		position: 0,
+		file:     directory,
 	}
 
 	seg.path = seg.logPath()
@@ -109,6 +109,10 @@ func (seg *segment) write(message []byte) (int, error) {
 	return numOfBytes, nil
 }
 
+func (s *segment) ReadAt(offset int64, bytes []byte) (n int, err error) {
+	return s.log.ReadAt(bytes, offset)
+}
+
 func (seg *segment) read(offset int64, total int32) (string, error) {
 	_, err := seg.log.Seek(offset, 0)
 	if err != nil {
@@ -150,10 +154,10 @@ func (seg *segment) readAll() error {
 
 func (s *segment) logPath() string {
 	//TODO: Change from position to something else?
-	return filepath.Join(s.partitionPath, fmt.Sprintf(fileFormat, s.position, logSuffix))
+	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.position, logSuffix))
 }
 
 func (s *segment) indexPath() string {
 	//TODO: Change from position to something else?
-	return filepath.Join(s.partitionPath, fmt.Sprintf(fileFormat, s.position, indexSuffix))
+	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.position, indexSuffix))
 }
