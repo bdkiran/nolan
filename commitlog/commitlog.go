@@ -33,6 +33,7 @@ func New(path string) (*Commitlog, error) {
 		}
 		return &cl, nil
 	}
+	logger.Info.Println("Found path: ", path)
 	//Since our partition already exists we need to load them in
 	cl.loadSegments()
 	return &cl, nil
@@ -66,12 +67,15 @@ func (cl *Commitlog) Append(message []byte) error {
 	loadSegments loads all of the segments from disk into memory to read
 */
 func (cl *Commitlog) loadSegments() error {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
 	files, err := os.ReadDir(cl.path)
 	if err != nil {
 		logger.Error.Fatal("Unable to read directory: ", err)
 	}
 
 	filesStrings := []string{}
+	filesToRemove := []string{}
 	for _, file := range files {
 		filesStrings = append(filesStrings, file.Name())
 	}
@@ -84,16 +88,18 @@ func (cl *Commitlog) loadSegments() error {
 			corespondingIndexFile := strings.Replace(file.Name(), logSuffix, indexSuffix, 1)
 			isPresentValue := sort.SearchStrings(filesStrings, corespondingIndexFile)
 			if isPresentValue == len(filesStrings) {
-				if err := os.Remove(file.Name()); err != nil {
-					return err
-				}
-			} else {
-				seg, err := loadSegment(corespondingIndexFile, file.Name())
-				if err != nil {
-					logger.Error.Fatal(err)
-				}
-				cl.segments = append(cl.segments, seg)
+				filesToRemove = append(filesToRemove, file.Name())
 			}
+			// else {
+			//This will not work if the path is passed in as "path/to/"
+			// logfileToLoad := cl.path + "/" + file.Name()
+			// indexFileToLoad := cl.path + "/" + corespondingIndexFile
+			// seg, err := loadSegment(indexFileToLoad, logfileToLoad)
+			// if err != nil {
+			// 	logger.Error.Fatal(err)
+			// }
+			// cl.segments = append(cl.segments, seg)
+			// }
 
 		} else if strings.HasSuffix(file.Name(), indexSuffix) {
 			corespondingLogFile := strings.Replace(file.Name(), indexSuffix, logSuffix, 1)
@@ -103,7 +109,9 @@ func (cl *Commitlog) loadSegments() error {
 					return err
 				}
 			} else {
-				seg, err := loadSegment(file.Name(), corespondingLogFile)
+				logfileToLoad := cl.path + "/" + corespondingLogFile
+				indexFileToLoad := cl.path + "/" + file.Name()
+				seg, err := loadSegment(indexFileToLoad, logfileToLoad)
 				if err != nil {
 					logger.Error.Fatal(err)
 				}
@@ -111,15 +119,16 @@ func (cl *Commitlog) loadSegments() error {
 			}
 		}
 	}
+	//Delete all of the corrupted files...
+	//Should this be in a goroutine??
+	for _, file := range filesToRemove {
+		fullFilePath := cl.path + "/" + file
+		if err := os.Remove(fullFilePath); err != nil {
+			return err
+		}
+	}
+
 	return nil
-	//TODO: Do correct checks on the files
-	// if indexFileName != "" && segmentFileName != "" {
-	// 	seg, err := loadSegment(indexFileName, segmentFileName)
-	// 	if err != nil {
-	// 		logger.Error.Fatal(err)
-	// 	}
-	// 	cl.segments = append(cl.segments, seg)
-	// }
 }
 
 func (cl *Commitlog) split() error {
@@ -164,5 +173,17 @@ func (cl *Commitlog) ReadAll() {
 	logger.Info.Println("Reading total segments: ", len(cl.segments))
 	for _, seg := range cl.segments {
 		seg.readAll()
+	}
+}
+
+func (cl *Commitlog) Read(offset int) {
+	logger.Info.Println("Reading...")
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	//Load correct segment based on naming...
+	newestSeg := cl.segments[len(cl.segments)-1]
+	_, err := newestSeg.ReadAt(offset)
+	if err != nil {
+		logger.Error.Println(err)
 	}
 }

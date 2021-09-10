@@ -37,11 +37,11 @@ func (ind *index) addEntry(position int, totalBytes int) {
 	ind.indexFile.Write(b.Bytes())
 }
 
-func (ind *index) loadIndex() {
+func (ind *index) loadIndex() int {
 	logger.Info.Println("Reading index..")
 	if ind.indexFile == nil {
 		logger.Error.Println("Pointer is nil")
-		return
+		return 0
 	}
 	ent := entry{}
 	//Set to the begining of the file
@@ -65,4 +65,5 @@ func (ind *index) loadIndex() {
 	}
 	logger.Info.Println(len(ind.entries))
 	logger.Info.Printf("%v\n", ind.entries)
+	return len(ind.entries)
 }

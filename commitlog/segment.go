@@ -17,21 +17,26 @@ const (
 )
 
 type segment struct {
-	writer   io.Writer
-	reader   io.Reader
-	log      *os.File
-	index    *index
-	path     string
-	position int
-	maxBytes int
-	file     string
+	writer         io.Writer
+	reader         io.Reader
+	log            *os.File
+	index          *index
+	path           string
+	position       int
+	maxBytes       int
+	startingOffset int
+	nextOffset     int
+	file           string
 }
 
 func newSegment(directory string) (*segment, error) {
+	//Starting and lastest start in same place...
 	seg := &segment{
-		maxBytes: 1000,
-		position: 0,
-		file:     directory,
+		maxBytes:       1000,
+		position:       0,
+		startingOffset: 0,
+		nextOffset:     0,
+		file:           directory,
 	}
 
 	seg.path = seg.logPath()
@@ -60,8 +65,9 @@ func newSegment(directory string) (*segment, error) {
 
 func loadSegment(indexPath string, logPath string) (*segment, error) {
 	seg := &segment{
-		path:     logPath,
-		maxBytes: 1000,
+		path:           logPath,
+		maxBytes:       1000,
+		startingOffset: 0,
 	}
 	loggly, err := os.OpenFile(seg.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -94,7 +100,9 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 		return seg, errors.New("pointer to file is nil")
 	}
 
-	seg.index.loadIndex()
+	totalEntries := seg.index.loadIndex()
+	seg.nextOffset = totalEntries
+
 	return seg, nil
 }
 
@@ -106,11 +114,21 @@ func (seg *segment) write(message []byte) (int, error) {
 	seg.index.addEntry(seg.position, numOfBytes)
 
 	seg.position += numOfBytes
+	seg.nextOffset++
+
 	return numOfBytes, nil
 }
 
-func (s *segment) ReadAt(offset int64, bytes []byte) (n int, err error) {
-	return s.log.ReadAt(bytes, offset)
+func (s *segment) ReadAt(offset int) (n int, err error) {
+	if offset >= s.nextOffset {
+		return 0, errors.New("offset out of bounds")
+	} else {
+		ent := s.index.entries[offset]
+		buff := make([]byte, ent.Total)
+		s.log.ReadAt(buff, int64(ent.Start))
+		logger.Info.Println("Reading segment: ", string(buff))
+	}
+	return 0, nil
 }
 
 func (seg *segment) read(offset int64, total int32) (string, error) {
@@ -154,10 +172,10 @@ func (seg *segment) readAll() error {
 
 func (s *segment) logPath() string {
 	//TODO: Change from position to something else?
-	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.position, logSuffix))
+	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.startingOffset, logSuffix))
 }
 
 func (s *segment) indexPath() string {
 	//TODO: Change from position to something else?
-	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.position, indexSuffix))
+	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.startingOffset, indexSuffix))
 }
