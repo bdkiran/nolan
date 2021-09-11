@@ -12,8 +12,7 @@ func main() {
 	// cl.Append([]byte("We made it"))
 	// cl.Append([]byte("Dont hate it"))
 	// cl.Append([]byte("Another test"))
-	cl.ReadAll()
-	//cl.ReadLatestEntry()
-	cl.Read(1)
-
+	cl.ReadLatestEntry()
+	cl.Read(0)
+	//cl.ReadAll()
 }
