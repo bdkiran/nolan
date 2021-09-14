@@ -24,7 +24,7 @@ $ main
 
 ## Design
 
-Nolan utilizes a commit log to provide message resiliancy. This type of starage is used by a variety of existing products such as Kafka, Postgresql and others to provide fast and strong garuntees about message retention. 
+Nolan utilizes a commit log to provide message resiliancy. This type of starage is used by a variety of existing products such as Kafka, Postgresql and others to provide fast and strong garuntees about message retention.
 
 ## Roadmap
 
