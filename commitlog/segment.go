@@ -119,16 +119,17 @@ func (seg *segment) write(message []byte) (int, error) {
 	return numOfBytes, nil
 }
 
-func (s *segment) ReadAt(offset int) (n int, err error) {
+func (s *segment) ReadAt(offset int) (returnBuff []byte, err error) {
+	var buff []byte
 	if offset >= s.nextOffset {
-		return 0, errors.New("offset out of bounds")
+		return nil, errors.New("offset out of bounds")
 	} else {
 		ent := s.index.entries[offset]
-		buff := make([]byte, ent.Total)
+		buff = make([]byte, ent.Total)
 		s.log.ReadAt(buff, int64(ent.Start))
 		logger.Info.Println("Reading segment: ", string(buff))
 	}
-	return 0, nil
+	return buff, nil
 }
 
 func (seg *segment) read(offset int64, total int32) (string, error) {

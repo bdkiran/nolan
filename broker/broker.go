@@ -22,7 +22,7 @@ func Main() {
 	var err error
 	COMMITLOG, err = commitlog.New("logs/partition0")
 	if err != nil {
-		logger.Error.Fatalln("Unable to initilizw commitlog", err)
+		logger.Error.Fatalln("Unable to initilize commitlog", err)
 	}
 
 	fmt.Println("Starting " + connType + " server on " + connHost + ":" + connPort)
@@ -63,7 +63,7 @@ func handleConnection(conn net.Conn) {
 	if requestMesage == "PRODUCER" {
 		producer(conn)
 	} else if requestMesage == "CONSUMER" {
-		consumer(conn)
+		consumer(conn, 0)
 	} else {
 		logger.Warning.Println("Invalid request send:", requestMesage)
 		conn.Close()
@@ -82,28 +82,31 @@ func producer(conn net.Conn) {
 
 	requestMesage := string(buffer[:len(buffer)-1])
 
-	logger.Info.Println("Client message:", requestMesage)
-
 	COMMITLOG.Append([]byte(requestMesage))
-
-	conn.Write(buffer)
+	conn.Write([]byte("AWK\n"))
 	producer(conn)
 }
 
-func consumer(conn net.Conn) {
-	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
+func consumer(conn net.Conn, offset int) {
+	requestMesageBuffer, err := COMMITLOG.Read(offset)
+	if err != nil {
+		logger.Warning.Println("Closing connection.", err)
+		conn.Close()
+		return
+	}
+	requestMesageBuffer = append(requestMesageBuffer, "\n"...)
+	conn.Write(requestMesageBuffer)
 
+	offset++
+
+	//Verify that we get to AWK message...
+	_, err = bufio.NewReader(conn).ReadBytes('\n')
 	if err != nil {
 		logger.Warning.Println("Client left.")
 		conn.Close()
 		return
 	}
 
-	COMMITLOG.ReadLatestEntry()
-	requestMesage := string(buffer[:len(buffer)-1])
+	consumer(conn, offset)
 
-	logger.Info.Println("Client message:", requestMesage)
-
-	conn.Write(buffer)
-	producer(conn)
 }

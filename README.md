@@ -10,16 +10,19 @@ For basic running and debuging
 
 ```bash
 $ go run .
+$
 ```
 
 To run a production build
 
 ```bash
 $ go install ./...
+$
 ```
 
 ```bash
 $ main
+$
 ```
 
 ## Design

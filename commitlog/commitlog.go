@@ -148,7 +148,8 @@ func (cl *Commitlog) split() error {
 
 }
 
-/* Helper/Debugger functions....*/
+/*************** Helper/Debugger functions....*************************/
+
 /*
 Not sure how useful this actually is..
 */
@@ -176,14 +177,17 @@ func (cl *Commitlog) ReadAll() {
 	}
 }
 
-func (cl *Commitlog) Read(offset int) {
+func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	logger.Info.Println("Reading...")
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
 	//Load correct segment based on naming...
 	newestSeg := cl.segments[len(cl.segments)-1]
-	_, err := newestSeg.ReadAt(offset)
+
+	buff, err := newestSeg.ReadAt(offset)
 	if err != nil {
 		logger.Error.Println(err)
+		return nil, err
 	}
+	return buff, err
 }
