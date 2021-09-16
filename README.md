@@ -1,5 +1,7 @@
 # Nolan: Lightwieght, fast, and resiliant event streaming
 
+![nolan workflow](https://github.com/bdkiran/nolan/actions/workflows/go.yml/badge.svg)
+
 Nolan is a tool that allows for messaging infrastrucure. It provides fast but resiliant messaging to build stream and Pub-Sub messaging.
 
 ## Getting Started
