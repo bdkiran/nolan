@@ -16,7 +16,7 @@ type Commitlog struct {
 }
 
 /*
-	Open will open a commitlog using the provided path.
+	New will open a commitlog using the provided path.
 	If no partion already exists, then one will be created.
 */
 func New(path string) (*Commitlog, error) {
