@@ -63,7 +63,7 @@ func (ind *index) loadIndex() int {
 		}
 		ind.entries = append(ind.entries, ent)
 	}
-	logger.Info.Println(len(ind.entries))
-	logger.Info.Printf("%v\n", ind.entries)
+	logger.Info.Println("Total index entries", len(ind.entries))
+	//logger.Info.Printf("%v\n", ind.entries)
 	return len(ind.entries)
 }

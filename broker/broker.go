@@ -11,41 +11,65 @@ import (
 )
 
 const (
-	connHost = "127.0.0.1"
-	connPort = "6969"
-	connType = "tcp"
+	connHost    = "127.0.0.1"
+	connPort    = 6969
+	connType    = "tcp"
+	clDirectory = "logs/partition0"
 )
 
-var COMMITLOG *commitlog.Commitlog
+type Server struct {
+	host           string
+	port           int
+	connectionType string
+	listener       net.Listener
+	commitlog      *commitlog.Commitlog
+}
 
-func Main() {
-	var err error
-	COMMITLOG, err = commitlog.New("logs/partition0")
+func NewServer() *Server {
+	s := Server{
+		host:           connHost,
+		port:           connPort,
+		connectionType: connType,
+	}
+
+	//Create a commitlog for our server
+	cl, err := commitlog.New("logs/partition0")
 	if err != nil {
 		logger.Error.Fatalln("Unable to initilize commitlog", err)
 	}
 
-	fmt.Println("Starting " + connType + " server on " + connHost + ":" + connPort)
-	l, err := net.Listen(connType, connHost+":"+connPort)
+	s.commitlog = cl
+	return &s
+}
+
+func (s *Server) StartServer() {
+	//Start up listening for the server
+	logger.Info.Printf("Starting %s server on %d\n", s.host, s.port)
+
+	connectionString := fmt.Sprintf("%s:%d", s.host, s.port)
+	listen, err := net.Listen(connType, connectionString)
 	if err != nil {
 		logger.Error.Fatalln("Error listening:", err.Error())
 		os.Exit(1)
 	}
-	defer l.Close()
+	defer listen.Close()
+
+	s.listener = listen
 
 	for {
-		c, err := l.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
 			fmt.Println("Error connecting:", err.Error())
 			return
 		}
-		logger.Info.Println("Client " + c.RemoteAddr().String() + " connected.")
+		logger.Info.Println("Client " + conn.RemoteAddr().String() + " connected.")
 
-		go handleConnection(c)
+		go s.handleConnection(conn)
 	}
+
 }
 
-func handleConnection(conn net.Conn) {
+func (s *Server) handleConnection(conn net.Conn) {
 	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
 
 	if err != nil {
@@ -61,17 +85,17 @@ func handleConnection(conn net.Conn) {
 	conn.Write(buffer)
 
 	if requestMesage == "PRODUCER" {
-		producer(conn)
+		s.producer(conn)
 	} else if requestMesage == "CONSUMER" {
-		consumer(conn, 0)
+		//Consumer should pass in initial offset
+		s.consumer(conn, 0)
 	} else {
 		logger.Warning.Println("Invalid request send:", requestMesage)
 		conn.Close()
 	}
-	//handleConnection(conn)
 }
 
-func producer(conn net.Conn) {
+func (s *Server) producer(conn net.Conn) {
 	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
 
 	if err != nil {
@@ -82,13 +106,13 @@ func producer(conn net.Conn) {
 
 	requestMesage := string(buffer[:len(buffer)-1])
 
-	COMMITLOG.Append([]byte(requestMesage))
+	s.commitlog.Append([]byte(requestMesage))
 	conn.Write([]byte("AWK\n"))
-	producer(conn)
+	s.producer(conn)
 }
 
-func consumer(conn net.Conn, offset int) {
-	requestMesageBuffer, err := COMMITLOG.Read(offset)
+func (s *Server) consumer(conn net.Conn, offset int) {
+	requestMesageBuffer, err := s.commitlog.Read(offset)
 	if err != nil {
 		logger.Warning.Println("Closing connection.", err)
 		conn.Close()
@@ -107,6 +131,6 @@ func consumer(conn net.Conn, offset int) {
 		return
 	}
 
-	consumer(conn, offset)
+	s.consumer(conn, offset)
 
 }

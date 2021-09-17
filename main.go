@@ -8,10 +8,12 @@ import (
 
 func main() {
 	logger.LoggerInit(false)
-	//go broker.producer()
-	//go broker.ConsumerClinet()
-	//another()
-	broker.Main()
+	go broker.ProducerClient()
+	go broker.ConsumerClinet()
+	// //another()
+	server := broker.NewServer()
+	server.StartServer()
+	Another()
 }
 
 func Another() {
@@ -23,5 +25,5 @@ func Another() {
 	// cl.Append([]byte("Another test"))
 	//cl.ReadLatestEntry()
 	cl.ReadAll()
-	cl.Read(0)
+	//cl.Read(0)
 }
