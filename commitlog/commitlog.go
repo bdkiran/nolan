@@ -5,14 +5,16 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	logger "github.com/bdkiran/nolan/utils"
 )
 
 type Commitlog struct {
-	path     string     //Path to the partition directory
-	segments []*segment //Individual segment files
-	mu       sync.RWMutex
+	path            string     //Path to the partition directory
+	segments        []*segment //Individual segment files
+	mu              sync.RWMutex
+	vCurrentSegment atomic.Value
 }
 
 /*
@@ -53,11 +55,20 @@ func (cl *Commitlog) Append(message []byte) error {
 			return err
 		}
 		cl.segments = append(cl.segments, segment)
+		cl.vCurrentSegment.Store(segment)
 	}
-	_, err := cl.segments[len(cl.segments)-1].write(message)
+	curSegment := cl.getCurrentSegment()
+	_, err := curSegment.write(message)
 	if err != nil {
-		//Check for error if too many bytes in the segment -> then split
-		cl.split()
+		if err.Error() == "max segment length" {
+			//Check for error if too many bytes in the segment -> then split
+			err = cl.split()
+			if err != nil {
+				return err
+			}
+			//Append again, this time on the new segment...
+			cl.Append(message)
+		}
 		return err
 	}
 	return nil
@@ -127,12 +138,16 @@ func (cl *Commitlog) loadSegments() error {
 			return err
 		}
 	}
+	//Set our active segment..
+	latestSegment := cl.segments[len(cl.segments)-1]
+	cl.vCurrentSegment.Store(latestSegment)
 
 	return nil
 }
 
 func (cl *Commitlog) split() error {
 	cl.mu.Lock()
+	defer cl.mu.Unlock()
 	segment, err := newSegment(cl.path)
 	if err != nil {
 		return err
@@ -143,9 +158,15 @@ func (cl *Commitlog) split() error {
 	// pass in the new number of entries
 
 	cl.segments = append(cl.segments, segment)
+	//Set our current segment to the new segment created
+	cl.vCurrentSegment.Store(segment)
 
 	return nil
 
+}
+
+func (l *Commitlog) getCurrentSegment() *segment {
+	return l.vCurrentSegment.Load().(*segment)
 }
 
 /*************** Helper/Debugger functions....*************************/
@@ -177,11 +198,15 @@ func (cl *Commitlog) ReadAll() {
 	}
 }
 
+/*
+	Read will read a specific 'offset' within the commitlog,
+	if the offset is out of bounds returns error
+*/
 func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	logger.Info.Println("Reading...")
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
-	//Load correct segment based on naming...
+	//TODO: Load correct segment, not just the newest segment
 	newestSeg := cl.segments[len(cl.segments)-1]
 
 	buff, err := newestSeg.ReadAt(offset)

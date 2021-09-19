@@ -31,3 +31,10 @@ func main() {
 }
 
 ```
+
+## To Implement
+
+- Multiple segments implementation
+- Cleaner. Need to be able to clean up old logs? How do we delineate older logs?
+- Reader? Not sure if we want to wrap a io.Reader interface
+

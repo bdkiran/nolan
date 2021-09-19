@@ -107,6 +107,17 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 }
 
 func (seg *segment) write(message []byte) (int, error) {
+	//Check the byte status..
+	fileInfo, err := seg.log.Stat()
+	if err != nil {
+		return 0, err
+	}
+	computedSize := fileInfo.Size() + int64(len(message))
+	//Strickly greater than
+	if computedSize > int64(seg.maxBytes) {
+		return 0, errors.New("max segment length")
+	}
+
 	numOfBytes, err := seg.writer.Write(message)
 	if err != nil {
 		return numOfBytes, err

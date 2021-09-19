@@ -1,15 +1,13 @@
 package broker
 
 import (
-	"bufio"
-	"fmt"
-	"net"
-	"os"
+	"strconv"
 
 	"github.com/bdkiran/nolan/commitlog"
 	logger "github.com/bdkiran/nolan/utils"
 )
 
+// These should not be hard coded, pass these in as a configuration
 const (
 	connHost    = "127.0.0.1"
 	connPort    = 6969
@@ -17,120 +15,83 @@ const (
 	clDirectory = "logs/partition0"
 )
 
-type Server struct {
-	host           string
-	port           int
-	connectionType string
-	listener       net.Listener
-	commitlog      *commitlog.Commitlog
+type Broker struct {
+	Server *Server
+	topics []Topic
 }
 
-func NewServer() *Server {
-	s := Server{
-		host:           connHost,
-		port:           connPort,
-		connectionType: connType,
-	}
-
-	//Create a commitlog for our server
-	cl, err := commitlog.New("logs/partition0")
-	if err != nil {
-		logger.Error.Fatalln("Unable to initilize commitlog", err)
-	}
-
-	s.commitlog = cl
-	return &s
+type Topic struct {
+	TopicName string
+	commitlog *commitlog.Commitlog
 }
 
-func (s *Server) StartServer() {
-	//Start up listening for the server
-	logger.Info.Printf("Starting %s server on %d\n", s.host, s.port)
-
-	connectionString := fmt.Sprintf("%s:%d", s.host, s.port)
-	listen, err := net.Listen(connType, connectionString)
-	if err != nil {
-		logger.Error.Fatalln("Error listening:", err.Error())
-		os.Exit(1)
+func NewBroker() *Broker {
+	server := NewServer()
+	broker := Broker{
+		Server: server,
 	}
-	defer listen.Close()
+	return &broker
+}
 
-	s.listener = listen
+func (broker *Broker) CreateTopic(topicName string, directory string) error {
+	// Create a commitlog for our server
+	// TODO: do not hard code a directory, should be passed in as a directory
+	cl, err := commitlog.New(directory)
+	if err != nil {
+		logger.Error.Println("Unable to initilize commitlog", err)
+		return err
+	}
+	topic := Topic{
+		TopicName: topicName,
+		commitlog: cl,
+	}
+	broker.topics = append(broker.topics, topic)
+	return nil
+}
 
+func (broker *Broker) Run() {
 	for {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			fmt.Println("Error connecting:", err.Error())
-			return
+		var res []byte
+		req := <-broker.Server.requestChan
+		if req.requestType == "PRODUCE" {
+			res = broker.handleProduce(req)
+		} else if req.requestType == "CONSUME" {
+			res = broker.handleConsumer(req)
+		} else {
+			logger.Error.Println("Unknown request: ", req.requestType)
+			res = []byte{}
 		}
-		logger.Info.Println("Client " + conn.RemoteAddr().String() + " connected.")
 
-		go s.handleConnection(conn)
-	}
-
-}
-
-func (s *Server) handleConnection(conn net.Conn) {
-	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
-
-	if err != nil {
-		logger.Warning.Println("Client left.")
-		conn.Close()
-		return
-	}
-
-	requestMesage := string(buffer[:len(buffer)-1])
-
-	logger.Info.Println("Client message:", string(buffer[:len(buffer)-1]))
-
-	conn.Write(buffer)
-
-	if requestMesage == "PRODUCER" {
-		s.producer(conn)
-	} else if requestMesage == "CONSUMER" {
-		//Consumer should pass in initial offset
-		s.consumer(conn, 0)
-	} else {
-		logger.Warning.Println("Invalid request send:", requestMesage)
-		conn.Close()
+		broker.Server.resposeChan <- &ReMessage{
+			requestType: req.requestType,
+			body:        res,
+			conn:        req.conn,
+		}
 	}
 }
 
-func (s *Server) producer(conn net.Conn) {
-	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
+func (broker *Broker) handleProduce(req *ReMessage) []byte {
+	requestMesage := req.body
+	logger.Info.Println(string(requestMesage))
 
+	err := broker.topics[0].commitlog.Append(requestMesage)
 	if err != nil {
-		logger.Warning.Println("Client left.")
-		conn.Close()
-		return
+		logger.Error.Println(err)
 	}
-
-	requestMesage := string(buffer[:len(buffer)-1])
-
-	s.commitlog.Append([]byte(requestMesage))
-	conn.Write([]byte("AWK\n"))
-	s.producer(conn)
+	return []byte("AWK\n")
+	//s.producer(conn)
 }
 
-func (s *Server) consumer(conn net.Conn, offset int) {
-	requestMesageBuffer, err := s.commitlog.Read(offset)
+func (broker *Broker) handleConsumer(req *ReMessage) []byte {
+	offset, err := strconv.Atoi(string(req.body))
 	if err != nil {
-		logger.Warning.Println("Closing connection.", err)
-		conn.Close()
-		return
+		logger.Error.Println("Message problem: ", string(req.body), err)
+	}
+	requestMesageBuffer, err := broker.topics[0].commitlog.Read(offset)
+	if err != nil {
+		logger.Error.Println("No message: ", err)
+		return []byte{}
 	}
 	requestMesageBuffer = append(requestMesageBuffer, "\n"...)
-	conn.Write(requestMesageBuffer)
-
-	offset++
-
-	//Verify that we get to AWK message...
-	_, err = bufio.NewReader(conn).ReadBytes('\n')
-	if err != nil {
-		logger.Warning.Println("Client left.")
-		conn.Close()
-		return
-	}
-
-	s.consumer(conn, offset)
-
+	return requestMesageBuffer
 }
