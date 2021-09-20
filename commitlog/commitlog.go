@@ -138,9 +138,12 @@ func (cl *Commitlog) loadSegments() error {
 			return err
 		}
 	}
-	//Set our active segment..
-	latestSegment := cl.segments[len(cl.segments)-1]
-	cl.vCurrentSegment.Store(latestSegment)
+	//If there are no segments, then we cannot set an active segment
+	if len(cl.segments) > 0 {
+		//Set our active segment to the latest segment
+		latestSegment := cl.segments[len(cl.segments)-1]
+		cl.vCurrentSegment.Store(latestSegment)
+	}
 
 	return nil
 }
