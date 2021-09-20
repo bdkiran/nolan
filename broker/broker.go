@@ -61,7 +61,6 @@ func (broker *Broker) Run() {
 			logger.Error.Println("Unknown request: ", req.requestType)
 			res = []byte{}
 		}
-
 		broker.Server.resposeChan <- &ReMessage{
 			requestType: req.requestType,
 			body:        res,
@@ -79,7 +78,6 @@ func (broker *Broker) handleProduce(req *ReMessage) []byte {
 		logger.Error.Println(err)
 	}
 	return []byte("AWK\n")
-	//s.producer(conn)
 }
 
 func (broker *Broker) handleConsumer(req *ReMessage) []byte {

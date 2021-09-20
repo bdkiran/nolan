@@ -8,19 +8,14 @@ import (
 
 func main() {
 	logger.LoggerInit(false)
-	Debug()
+	//Debug()
 	RunBroker()
-
-	// //another()
-	// server := broker.NewServer()
-	// server.StartServer()
-	// debug()
 }
 
 func RunBroker() {
 	finish := make(chan bool)
-	go broker.ProducerClient()
-	//go broker.ConsumerClinet()
+	//go broker.ProducerClient()
+	go broker.ConsumerClinet()
 	broker := broker.NewBroker()
 	broker.CreateTopic("topic1", "logs/partition0")
 	go broker.Server.StartServer()

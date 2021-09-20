@@ -65,10 +65,11 @@ func (s *Server) StartServer() {
 	}()
 
 	go func() {
-		res := <-s.resposeChan
-		s.handleResponse(res)
+		for {
+			res := <-s.resposeChan
+			s.handleResponse(res)
+		}
 	}()
-
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
@@ -112,6 +113,7 @@ func (s *Server) producerMessage(conn net.Conn) {
 	}
 
 	s.requestChan <- newProduceRequest
+	s.producerMessage(conn)
 }
 
 func (s *Server) consumerMessage(conn net.Conn, offset int) {
@@ -120,8 +122,17 @@ func (s *Server) consumerMessage(conn net.Conn, offset int) {
 		body:        []byte(strconv.Itoa(offset)),
 		conn:        conn,
 	}
-
 	s.requestChan <- newProduceRequest
+
+	//Verify that we get to AWK message...
+	_, err := bufio.NewReader(conn).ReadBytes('\n')
+	if err != nil {
+		logger.Warning.Println("Client left.")
+		conn.Close()
+		return
+	}
+	offset++
+	s.consumerMessage(conn, offset)
 }
 
 func (s *Server) handleResponse(res *ReMessage) {
