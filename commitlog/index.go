@@ -31,8 +31,6 @@ func (ind *index) addEntry(position int, totalBytes int) {
 	if err := binary.Write(b, binary.BigEndian, ent); err != nil {
 		logger.Error.Panicln(err)
 	}
-	//logger.Info.Println(b.Bytes())
-	//logger.Info.Println(len(b.Bytes()))
 
 	ind.indexFile.Write(b.Bytes())
 }

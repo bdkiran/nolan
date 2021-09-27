@@ -34,8 +34,6 @@ func NewBroker() *Broker {
 }
 
 func (broker *Broker) CreateTopic(topicName string, directory string) error {
-	// Create a commitlog for our server
-	// TODO: do not hard code a directory, should be passed in as a directory
 	cl, err := commitlog.New(directory)
 	if err != nil {
 		logger.Error.Println("Unable to initilize commitlog", err)

@@ -84,31 +84,3 @@ func TestLoadSegments(t *testing.T) {
 		t.Error("Unable to clean up after test.", err)
 	}
 }
-
-func TestLoadSegmentsNoLog(t *testing.T) {
-	//Create a directory
-	err := os.Mkdir(testDirectory, 0755)
-	if err != nil {
-		t.Error("Error when trying to create a new directory.", err)
-	}
-
-	//Create logs and indexs
-	_, err = newSegment(testDirectory)
-	if err != nil {
-		t.Error("Error when creating a new segment.", err)
-	}
-
-	_, err = New(testDirectory)
-	if err != nil {
-		t.Error("Error when creating commitlog.", err)
-	}
-
-	//clean up
-	err = os.RemoveAll(testDirectory)
-	if err != nil {
-		t.Error("Unable to clean up after test.", err)
-	}
-}
-func TestSplit(t *testing.T) {
-
-}

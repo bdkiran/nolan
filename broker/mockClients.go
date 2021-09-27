@@ -2,12 +2,18 @@ package broker
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
 
 	logger "github.com/bdkiran/nolan/utils"
 )
+
+type Message struct {
+	Title string
+	Body  string
+}
 
 func ProducerClient() {
 	time.Sleep(5 * time.Second)
@@ -34,9 +40,18 @@ func ProducerClient() {
 
 	i := 0
 	for {
-		msg := fmt.Sprintf("Message: %d\n", i)
+		title := fmt.Sprintf("Message: %d", i)
+		body := fmt.Sprintf("Body: %d", i)
 
-		_, err := conn.Write([]byte(msg))
+		m := Message{title, body}
+		messageBuffer, err := json.Marshal(m)
+		if err != nil {
+			logger.Error.Fatalln(err)
+		}
+
+		messageBuffer = append(messageBuffer, "\n"...)
+
+		_, err = conn.Write(messageBuffer)
 		if err != nil {
 			logger.Error.Fatal(err)
 		}

@@ -26,10 +26,10 @@ func RunBroker() {
 func Debug() {
 	logger.LoggerInit(false)
 	logger.Info.Println("Nolan Starting up...")
-	cl, _ := commitlog.New("logs/partition0")
-	// cl.Append([]byte("We made it"))
-	// cl.Append([]byte("Dont hate it"))
-	// cl.Append([]byte("Another test"))
+	cl, _ := commitlog.New("logs/partition1")
+	cl.Append([]byte("We made it"))
+	cl.Append([]byte("Dont hate it"))
+	cl.Append([]byte("Another test"))
 	//cl.ReadLatestEntry()
-	cl.ReadAll()
+	//cl.ReadAll()
 }
