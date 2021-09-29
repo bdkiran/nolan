@@ -35,7 +35,6 @@ func New(path string) (*Commitlog, error) {
 		}
 		return &cl, nil
 	}
-	logger.Info.Println("Found path: ", path)
 	//Since our partition already exists we need to load them in
 	cl.loadSegments()
 	return &cl, nil
@@ -49,9 +48,10 @@ func (cl *Commitlog) Append(message []byte) error {
 	defer cl.mu.Unlock()
 	if len(cl.segments) == 0 {
 		logger.Info.Println("Creating a new segment")
-		segment, err := newSegment(cl.path)
+		segment, err := newSegment(cl.path, 0)
 		if err != nil {
 			logger.Error.Println("Unable to create new segment:", err)
+			cl.mu.Unlock()
 			return err
 		}
 		cl.segments = append(cl.segments, segment)
@@ -61,6 +61,7 @@ func (cl *Commitlog) Append(message []byte) error {
 	_, err := curSegment.write(message)
 	if err != nil {
 		if err.Error() == "max segment length" {
+			cl.mu.Unlock()
 			//Check for error if too many bytes in the segment -> then split
 			err = cl.split()
 			if err != nil {
@@ -68,6 +69,8 @@ func (cl *Commitlog) Append(message []byte) error {
 			}
 			//Append again, this time on the new segment...
 			cl.Append(message)
+			cl.mu.Lock() //So defer unlock works..
+			return nil
 		}
 		return err
 	}
@@ -151,21 +154,19 @@ func (cl *Commitlog) loadSegments() error {
 func (cl *Commitlog) split() error {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
-	segment, err := newSegment(cl.path)
+	seg := cl.getCurrentSegment()
+	segment, err := newSegment(cl.path, seg.nextOffset)
 	if err != nil {
 		return err
 	}
-	logger.Info.Println("Spliting segment")
-	//Get the active segment
-	// Get the total number of entries
-	// pass in the new number of entries
+
+	logger.Info.Println(segment.path)
 
 	cl.segments = append(cl.segments, segment)
 	//Set our current segment to the new segment created
 	cl.vCurrentSegment.Store(segment)
 
 	return nil
-
 }
 
 func (l *Commitlog) getCurrentSegment() *segment {
@@ -175,19 +176,19 @@ func (l *Commitlog) getCurrentSegment() *segment {
 /*************** Helper/Debugger functions....*************************/
 
 /*
-Not sure how useful this actually is..
+	Not sure how useful this actually is.. Not really used at the moment..
 */
-func (cl *Commitlog) ReadLatestEntry() {
-	cl.mu.Lock()
-	defer cl.mu.Unlock()
-	newestSeg := cl.segments[len(cl.segments)-1]
-	lastEntry := newestSeg.index.entries[len(newestSeg.index.entries)-1]
-	latest, err := newestSeg.read(int64(lastEntry.Start), lastEntry.Total)
-	if err != nil {
-		logger.Error.Println(err)
-	}
-	logger.Info.Println(latest)
-}
+// func (cl *Commitlog) ReadLatestEntry() {
+// 	cl.mu.Lock()
+// 	defer cl.mu.Unlock()
+// 	newestSeg := cl.segments[len(cl.segments)-1]
+// 	lastEntry := newestSeg.index.entries[len(newestSeg.index.entries)-1]
+// 	latest, err := newestSeg.read(int64(lastEntry.Start), lastEntry.Total)
+// 	if err != nil {
+// 		logger.Error.Println(err)
+// 	}
+// 	logger.Info.Println(latest)
+// }
 
 /*
 	Reads everything written to the commit log, probably should be used to just debug
@@ -212,7 +213,7 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	//TODO: Load correct segment, not just the newest segment
 	newestSeg := cl.segments[len(cl.segments)-1]
 
-	buff, err := newestSeg.ReadAt(offset)
+	buff, err := newestSeg.readAt(offset)
 	if err != nil {
 		logger.Error.Println(err)
 		return nil, err

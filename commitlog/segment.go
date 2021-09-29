@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	logger "github.com/bdkiran/nolan/utils"
 )
@@ -27,18 +28,18 @@ type segment struct {
 	startingOffset int
 	nextOffset     int
 	file           string
+	mu             sync.Mutex
 }
 
-func newSegment(directory string) (*segment, error) {
+func newSegment(directory string, offset int) (*segment, error) {
 	//Starting and lastest start in same place...
 	seg := &segment{
 		maxBytes:       1000,
 		position:       0,
-		startingOffset: 0,
-		nextOffset:     0,
+		startingOffset: offset,
+		nextOffset:     offset,
 		file:           directory,
 	}
-
 	seg.path = seg.logPath()
 	loggly, err := os.OpenFile(seg.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -86,7 +87,6 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 	ind := &index{
 		path: indexPath,
 	}
-	logger.Info.Println("opening file", ind.path)
 	indder, err := os.OpenFile(ind.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return seg, err
@@ -107,6 +107,8 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 }
 
 func (seg *segment) write(message []byte) (int, error) {
+	seg.mu.Lock()
+	defer seg.mu.Unlock()
 	//Check the byte status..
 	fileInfo, err := seg.log.Stat()
 	if err != nil {
@@ -130,32 +132,19 @@ func (seg *segment) write(message []byte) (int, error) {
 	return numOfBytes, nil
 }
 
-func (s *segment) ReadAt(offset int) (returnBuff []byte, err error) {
+func (seg *segment) readAt(offset int) (returnBuff []byte, err error) {
+	seg.mu.Lock()
+	defer seg.mu.Unlock()
 	var buff []byte
-	if offset >= s.nextOffset {
+	if offset >= seg.nextOffset {
 		return nil, errors.New("offset out of bounds")
 	} else {
-		ent := s.index.entries[offset]
+		ent := seg.index.entries[offset]
 		buff = make([]byte, ent.Total)
-		s.log.ReadAt(buff, int64(ent.Start))
+		seg.log.ReadAt(buff, int64(ent.Start))
 		logger.Info.Println("Reading segment: ", string(buff))
 	}
 	return buff, nil
-}
-
-func (seg *segment) read(offset int64, total int32) (string, error) {
-	_, err := seg.log.Seek(offset, 0)
-	if err != nil {
-		logger.Error.Println(err)
-		return "", err
-	}
-	b2 := make([]byte, total)
-	n2, err := seg.reader.Read(b2)
-	if err != nil {
-		logger.Error.Println(err)
-		return "", err
-	}
-	return string(b2[:n2]), nil
 }
 
 func (seg *segment) readAll() error {
@@ -191,3 +180,32 @@ func (s *segment) indexPath() string {
 	//TODO: Change from position to something else?
 	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.startingOffset, indexSuffix))
 }
+
+/* Unused/Not Implemented Functions */
+// func (seg *segment) close() error {
+// 	seg.mu.Lock()
+// 	defer seg.mu.Unlock()
+// 	if err := seg.log.Close(); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+/* Deprecated functions */
+
+// func (seg *segment) read(offset int64, total int32) (string, error) {
+// 	seg.mu.Lock()
+// 	defer seg.mu.Unlock()
+// 	_, err := seg.log.Seek(offset, 0)
+// 	if err != nil {
+// 		logger.Error.Println(err)
+// 		return "", err
+// 	}
+// 	b2 := make([]byte, total)
+// 	n2, err := seg.reader.Read(b2)
+// 	if err != nil {
+// 		logger.Error.Println(err)
+// 		return "", err
+// 	}
+// 	return string(b2[:n2]), nil
+// }

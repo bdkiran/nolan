@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"os"
+	"sync"
 
 	logger "github.com/bdkiran/nolan/utils"
 )
@@ -13,6 +14,7 @@ type index struct {
 	entries   []entry
 	path      string
 	indexFile *os.File
+	mu        sync.RWMutex
 }
 
 type entry struct {
@@ -21,6 +23,8 @@ type entry struct {
 }
 
 func (ind *index) addEntry(position int, totalBytes int) {
+	ind.mu.Lock()
+	defer ind.mu.Unlock()
 	ent := entry{
 		Start: int32(position),
 		Total: int32(totalBytes),
@@ -41,6 +45,8 @@ func (ind *index) loadIndex() int {
 		logger.Error.Println("Pointer is nil")
 		return 0
 	}
+	ind.mu.Lock()
+	defer ind.mu.Unlock()
 	ent := entry{}
 	//Set to the begining of the file
 	ind.indexFile.Seek(0, 0)
@@ -65,3 +71,13 @@ func (ind *index) loadIndex() int {
 	//logger.Info.Printf("%v\n", ind.entries)
 	return len(ind.entries)
 }
+
+/* Not implemented functions... */
+// func (ind *index) close() error {
+// 	ind.mu.Lock()
+// 	defer ind.mu.Unlock()
+// 	if err := ind.indexFile.Close(); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }

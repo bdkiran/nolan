@@ -24,8 +24,11 @@ func ProducerClient() {
 	}
 	defer conn.Close()
 
+	//Build our connection string
+	topic := "topic1"
+	conectionString := fmt.Sprintf("PRODUCER:%s\n", topic)
 	//Establish connection
-	_, err = conn.Write([]byte("PRODUCER\n"))
+	_, err = conn.Write([]byte(conectionString))
 	if err != nil {
 		logger.Error.Fatal(err)
 	}
@@ -79,7 +82,9 @@ func ConsumerClinet() {
 	defer conn.Close()
 
 	//Establish connection
-	_, err = conn.Write([]byte("CONSUMER\n"))
+	topic := "topic1"
+	conectionString := fmt.Sprintf("CONSUMER:%s\n", topic)
+	_, err = conn.Write([]byte(conectionString))
 	if err != nil {
 		logger.Error.Fatal(err)
 	}

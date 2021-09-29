@@ -17,18 +17,19 @@ const (
 
 type Broker struct {
 	Server *Server
-	topics []Topic
+	topics map[string]*commitlog.Commitlog
 }
 
-type Topic struct {
-	TopicName string
-	commitlog *commitlog.Commitlog
-}
+// type Topic struct {
+// 	TopicName string
+// 	commitlog *commitlog.Commitlog
+// }
 
 func NewBroker() *Broker {
 	server := NewServer()
 	broker := Broker{
 		Server: server,
+		topics: make(map[string]*commitlog.Commitlog),
 	}
 	return &broker
 }
@@ -39,11 +40,7 @@ func (broker *Broker) CreateTopic(topicName string, directory string) error {
 		logger.Error.Println("Unable to initilize commitlog", err)
 		return err
 	}
-	topic := Topic{
-		TopicName: topicName,
-		commitlog: cl,
-	}
-	broker.topics = append(broker.topics, topic)
+	broker.topics[topicName] = cl
 	return nil
 }
 
@@ -61,6 +58,7 @@ func (broker *Broker) Run() {
 		}
 		broker.Server.resposeChan <- &ReMessage{
 			requestType: req.requestType,
+			topic:       req.topic,
 			body:        res,
 			conn:        req.conn,
 		}
@@ -71,7 +69,9 @@ func (broker *Broker) handleProduce(req *ReMessage) []byte {
 	requestMesage := req.body
 	logger.Info.Println(string(requestMesage))
 
-	err := broker.topics[0].commitlog.Append(requestMesage)
+	commitlog := broker.topics[req.topic]
+
+	err := commitlog.Append(requestMesage)
 	if err != nil {
 		logger.Error.Println(err)
 	}
@@ -83,7 +83,8 @@ func (broker *Broker) handleConsumer(req *ReMessage) []byte {
 	if err != nil {
 		logger.Error.Println("Message problem: ", string(req.body), err)
 	}
-	requestMesageBuffer, err := broker.topics[0].commitlog.Read(offset)
+	commitlog := broker.topics[req.topic]
+	requestMesageBuffer, err := commitlog.Read(offset)
 	if err != nil {
 		logger.Error.Println("No message: ", err)
 		return []byte{}

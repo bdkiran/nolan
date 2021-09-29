@@ -2,6 +2,7 @@ package broker
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -22,6 +23,7 @@ type Server struct {
 
 type ReMessage struct {
 	requestType string
+	topic       string
 	body        []byte
 	conn        io.ReadWriter
 }
@@ -80,25 +82,34 @@ func (s *Server) handleConnection(conn net.Conn) {
 		conn.Close()
 		return
 	}
-
-	requestMesage := string(buffer[:len(buffer)-1])
+	requestMessage, topic, _ := parseConnectionMessage(buffer)
 
 	logger.Info.Println("Client message:", string(buffer[:len(buffer)-1]))
 
 	conn.Write(buffer)
 
-	if requestMesage == "PRODUCER" {
-		s.producerMessage(conn)
-	} else if requestMesage == "CONSUMER" {
+	if requestMessage == "PRODUCER" {
+		s.producerMessage(conn, topic)
+	} else if requestMessage == "CONSUMER" {
 		//Consumer should pass in initial offset
-		s.consumerMessage(conn, 0)
+		s.consumerMessage(conn, 0, topic)
 	} else {
-		logger.Warning.Println("Invalid request send:", requestMesage)
+		logger.Warning.Println("Invalid request sent:", requestMessage)
 		conn.Close()
 	}
 }
 
-func (s *Server) producerMessage(conn net.Conn) {
+func parseConnectionMessage(connectionMessage []byte) (string, string, error) {
+	splitConMsg := connectionMessage[:len(connectionMessage)-1]
+	newBytes := bytes.Split(splitConMsg, []byte(":"))
+	logger.Info.Println(string(newBytes[0]))
+	logger.Info.Println(string(newBytes[1]))
+
+	return string(newBytes[0]), string(newBytes[1]), nil
+
+}
+
+func (s *Server) producerMessage(conn net.Conn, topic string) {
 	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
 	if err != nil {
 		logger.Warning.Println("Client left.")
@@ -108,17 +119,19 @@ func (s *Server) producerMessage(conn net.Conn) {
 	logger.Info.Println(string(buffer[:len(buffer)-1]))
 	newProduceRequest := &ReMessage{
 		requestType: "PRODUCE",
+		topic:       topic,
 		body:        buffer[:len(buffer)-1],
 		conn:        conn,
 	}
 
 	s.requestChan <- newProduceRequest
-	s.producerMessage(conn)
+	s.producerMessage(conn, topic)
 }
 
-func (s *Server) consumerMessage(conn net.Conn, offset int) {
+func (s *Server) consumerMessage(conn net.Conn, offset int, topic string) {
 	newProduceRequest := &ReMessage{
 		requestType: "CONSUME",
+		topic:       topic,
 		body:        []byte(strconv.Itoa(offset)),
 		conn:        conn,
 	}
@@ -132,7 +145,7 @@ func (s *Server) consumerMessage(conn net.Conn, offset int) {
 		return
 	}
 	offset++
-	s.consumerMessage(conn, offset)
+	s.consumerMessage(conn, offset, topic)
 }
 
 func (s *Server) handleResponse(res *ReMessage) {
