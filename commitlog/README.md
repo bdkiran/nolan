@@ -2,7 +2,7 @@
 
 ## Design
 
-The log is the heart of this data storage system as it provides a reliable source of truth. The Commitlog in particular prioritizes fast append-only writes and reads. It is made up of 3 main structures/objects: commitlog, segment, and index
+The log is the heart of this data storage system as it provides a reliable source of truth. The Commitlog in particular prioritizes fast append-only writes and reads. It is made up of 3 main structures/objects: commitlog, segment, and index. The goal is to keep the source code of the commitlog under 500 lines, not including tests.
 
 ### Segment
 
@@ -37,4 +37,3 @@ func main() {
 - Multiple segments implementation
 - Cleaner. Need to be able to clean up old logs? How do we delineate older logs?
 - Reader? Not sure if we want to wrap a io.Reader interface
-

@@ -13,6 +13,7 @@ const (
 	letterBytes   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
+/* Functions to Help all of out Testing...*/
 func TestMain(m *testing.M) {
 	// Initialize logger so stuff doesnt break
 	logger.LoggerInit(false)
@@ -28,21 +29,24 @@ func generateRandomBytes(length int) []byte {
 	return buffer
 }
 
+func cleanup(t *testing.T, directory string) {
+	err := os.RemoveAll(directory)
+	if err != nil {
+		t.Error("Unable to clean up after test.", err)
+	}
+}
+
 // Tests if a new comitlog directory is created
 func TestNewCommitlog(t *testing.T) {
 	_, err := New(testDirectory)
 	if err != nil {
 		t.Error("Error when creating new directory.", err)
 	}
+	defer cleanup(t, testDirectory)
 	//verify that the path was created
 	_, err = os.Stat(testDirectory)
 	if err != nil {
 		t.Error("Directory was not created.", err)
-	}
-	//clean up
-	err = os.Remove(testDirectory)
-	if err != nil {
-		t.Error("Unable to clean up after test.", err)
 	}
 }
 
@@ -52,14 +56,11 @@ func TestExistingCommitlog(t *testing.T) {
 	if err != nil {
 		t.Error("Error when trying to create a new directory.", err)
 	}
+	defer cleanup(t, testDirectory)
+
 	_, err = New(testDirectory)
 	if err != nil {
 		t.Error("Error when loading a directory.", err)
-	}
-	//clean up
-	err = os.Remove(testDirectory)
-	if err != nil {
-		t.Error("Unable to clean up after test.", err)
 	}
 }
 
@@ -69,6 +70,7 @@ func TestAppendCommitlog(t *testing.T) {
 	if err != nil {
 		t.Error("Error when loading a directory.", err)
 	}
+	defer cleanup(t, testDirectory)
 	appendString := "hello"
 	cl.Append([]byte(appendString))
 
@@ -80,12 +82,6 @@ func TestAppendCommitlog(t *testing.T) {
 	if appendString != string(buffer) {
 		t.Errorf("Expected %s message but instead got %s message!", appendString, string(buffer))
 	}
-
-	//clean up
-	err = os.RemoveAll(testDirectory)
-	if err != nil {
-		t.Error("Unable to clean up after test.", err)
-	}
 }
 
 // Create log and index files
@@ -96,6 +92,7 @@ func TestLoadSegments(t *testing.T) {
 	if err != nil {
 		t.Error("Error when trying to create a new directory.", err)
 	}
+	defer cleanup(t, testDirectory)
 
 	//Create logs and indexs
 	_, err = newSegment(testDirectory, 0)
@@ -112,12 +109,6 @@ func TestLoadSegments(t *testing.T) {
 	if len(cl.segments) != expected {
 		t.Errorf("Expected %d segments but instead got %d segments!", expected, len(cl.segments))
 	}
-
-	//clean up
-	err = os.RemoveAll(testDirectory)
-	if err != nil {
-		t.Error("Unable to clean up after test.", err)
-	}
 }
 
 //Test appending a segment
@@ -126,6 +117,7 @@ func TestSplitCommitlog(t *testing.T) {
 	if err != nil {
 		t.Error("Error when loading a directory.", err)
 	}
+	defer cleanup(t, testDirectory)
 	//Limit on split is 1000byte, we need to append more than that to split
 	for i := 0; i < 10; i++ {
 		bytesToAppend := generateRandomBytes(120)
@@ -142,11 +134,5 @@ func TestSplitCommitlog(t *testing.T) {
 
 	if len(files) != 4 {
 		t.Errorf("Expected 4 files, got %d: ", len(files))
-	}
-
-	//clean up
-	err = os.RemoveAll(testDirectory)
-	if err != nil {
-		t.Error("Unable to clean up after test.", err)
 	}
 }
