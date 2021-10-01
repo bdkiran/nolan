@@ -1,4 +1,4 @@
-package broker
+package main
 
 import (
 	"bufio"
@@ -43,8 +43,8 @@ func ProducerClient() {
 
 	i := 0
 	for {
-		title := fmt.Sprintf("Message: %d", i)
-		body := fmt.Sprintf("Body: %d", i)
+		title := fmt.Sprintf("Message %d", i)
+		body := fmt.Sprintf("Body %d", i)
 
 		m := Message{title, body}
 		messageBuffer, err := json.Marshal(m)

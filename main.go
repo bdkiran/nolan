@@ -8,14 +8,14 @@ import (
 
 func main() {
 	logger.LoggerInit(false)
-	//Debug()
-	RunBroker()
+	Debug()
+	//RunBroker()
 }
 
 func RunBroker() {
 	finish := make(chan bool)
-	//go broker.ProducerClient()
-	go broker.ConsumerClinet()
+	go ProducerClient()
+	//go ConsumerClinet()
 	broker := broker.NewBroker()
 	broker.CreateTopic("topic1", "logs/partition0")
 	go broker.Server.StartServer()
@@ -26,10 +26,10 @@ func RunBroker() {
 func Debug() {
 	logger.LoggerInit(false)
 	logger.Info.Println("Nolan Starting up...")
-	cl, _ := commitlog.New("logs/partition1")
-	cl.Append([]byte("We made it"))
-	cl.Append([]byte("Dont hate it"))
-	cl.Append([]byte("Another test"))
+	cl, _ := commitlog.New("logs/partition0")
+	// cl.Append([]byte("We made it"))
+	// cl.Append([]byte("Dont hate it"))
+	// cl.Append([]byte("Another test"))
 	//cl.ReadLatestEntry()
-	//cl.ReadAll()
+	cl.ReadAll()
 }

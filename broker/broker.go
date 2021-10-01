@@ -9,21 +9,15 @@ import (
 
 // These should not be hard coded, pass these in as a configuration
 const (
-	connHost    = "127.0.0.1"
-	connPort    = 6969
-	connType    = "tcp"
-	clDirectory = "logs/partition0"
+	connHost = "127.0.0.1"
+	connPort = 6969
+	connType = "tcp"
 )
 
 type Broker struct {
 	Server *Server
 	topics map[string]*commitlog.Commitlog
 }
-
-// type Topic struct {
-// 	TopicName string
-// 	commitlog *commitlog.Commitlog
-// }
 
 func NewBroker() *Broker {
 	server := NewServer()
