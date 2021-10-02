@@ -12,6 +12,13 @@ import (
 	logger "github.com/bdkiran/nolan/utils"
 )
 
+// These should not be hard coded, pass these in as a configuration
+const (
+	connHost = "127.0.0.1"
+	connPort = 6969
+	connType = "tcp"
+)
+
 type Server struct {
 	host           string
 	port           int

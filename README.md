@@ -2,7 +2,7 @@
 
 ![nolan workflow](https://github.com/bdkiran/nolan/actions/workflows/go.yml/badge.svg)
 
-Nolan is a tool that allows for messaging infrastrucure. It provides fast but resiliant messaging to build stream and Pub-Sub messaging.
+Nolan is a tool that allows for messaging infrastrucure. It provides fast but resiliant messaging to build stream and pub-sub messaging.
 
 ## Getting Started
 
@@ -11,20 +11,14 @@ Since the app is written in Go, it needs to be compiled and run.
 For basic running and debuging
 
 ```bash
-$ go run .
-$
+$ make run
 ```
 
 To run a production build
 
 ```bash
-$ go install ./...
-$
-```
-
-```bash
-$ main
-$
+$ make build
+$ ./nolan
 ```
 
 ## Design

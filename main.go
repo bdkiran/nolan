@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+
 	"github.com/bdkiran/nolan/broker"
 	"github.com/bdkiran/nolan/commitlog"
 	logger "github.com/bdkiran/nolan/utils"
@@ -8,8 +10,16 @@ import (
 
 func main() {
 	logger.LoggerInit(false)
-	Debug()
-	//RunBroker()
+	debugPtr := flag.Bool("debug", false, "Debug the commitlog by reading it")
+
+	flag.Parse()
+
+	logger.Info.Println(*debugPtr)
+	if *debugPtr {
+		Debug()
+		return
+	}
+	RunBroker()
 }
 
 func RunBroker() {
