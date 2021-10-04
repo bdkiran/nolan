@@ -72,7 +72,7 @@ func ProducerClient() {
 	}
 }
 
-func ConsumerClinet() {
+func consumerClient() {
 	time.Sleep(5 * time.Second)
 	logger.Info.Println("Creating connection..")
 	conn, err := net.Dial("tcp", "127.0.0.1:6969")
