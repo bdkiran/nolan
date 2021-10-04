@@ -173,23 +173,6 @@ func (l *Commitlog) getCurrentSegment() *segment {
 	return l.vCurrentSegment.Load().(*segment)
 }
 
-/*************** Helper/Debugger functions....*************************/
-
-/*
-	Not sure how useful this actually is.. Not really used at the moment..
-*/
-// func (cl *Commitlog) ReadLatestEntry() {
-// 	cl.mu.Lock()
-// 	defer cl.mu.Unlock()
-// 	newestSeg := cl.segments[len(cl.segments)-1]
-// 	lastEntry := newestSeg.index.entries[len(newestSeg.index.entries)-1]
-// 	latest, err := newestSeg.read(int64(lastEntry.Start), lastEntry.Total)
-// 	if err != nil {
-// 		logger.Error.Println(err)
-// 	}
-// 	logger.Info.Println(latest)
-// }
-
 /*
 	Reads everything written to the commit log, probably should be used to just debug
 */
@@ -210,6 +193,18 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	logger.Info.Println("Reading...")
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
+
+	//flag := false
+	// Get the segment that holds the offset
+	for _, seg := range cl.segments {
+		logger.Error.Println(seg.path)
+		if seg.startingOffset < offset {
+			logger.Info.Println("Base offset is less then: " + seg.path)
+		} else {
+			logger.Info.Println("Base offset is greater then: " + seg.path)
+		}
+	}
+
 	//TODO: Load correct segment, not just the newest segment
 	newestSeg := cl.segments[len(cl.segments)-1]
 
@@ -220,3 +215,20 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	}
 	return buff, err
 }
+
+/*************** Helper/Debugger functions....*************************/
+
+/*
+	Not sure how useful this actually is.. Not really used at the moment..
+*/
+// func (cl *Commitlog) ReadLatestEntry() {
+// 	cl.mu.Lock()
+// 	defer cl.mu.Unlock()
+// 	newestSeg := cl.segments[len(cl.segments)-1]
+// 	lastEntry := newestSeg.index.entries[len(newestSeg.index.entries)-1]
+// 	latest, err := newestSeg.read(int64(lastEntry.Start), lastEntry.Total)
+// 	if err != nil {
+// 		logger.Error.Println(err)
+// 	}
+// 	logger.Info.Println(latest)
+// }
