@@ -210,6 +210,9 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	logger.Info.Println("Reading...")
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
+
+	//Determine the segment of the offset based on the file name.
+
 	//TODO: Load correct segment, not just the newest segment
 	newestSeg := cl.segments[len(cl.segments)-1]
 

@@ -10,22 +10,29 @@ import (
 
 func main() {
 	logger.LoggerInit(false)
+	mockClient := flag.String("client", "", "Flag to start the test producer or consumer")
 	debugPtr := flag.Bool("debug", false, "Debug the commitlog by reading it")
 
 	flag.Parse()
+
+	logger.Info.Println(*mockClient)
+	if *mockClient == "producer" {
+		go ProducerClient()
+	} else if *mockClient == "subscriber" {
+		go consumerClient()
+	}
 
 	logger.Info.Println(*debugPtr)
 	if *debugPtr {
 		Debug()
 		return
 	}
+
 	RunBroker()
 }
 
 func RunBroker() {
 	finish := make(chan bool)
-	go ProducerClient()
-	//go ConsumerClinet()
 	broker := broker.NewBroker()
 	broker.CreateTopic("topic1", "logs/partition0")
 	go broker.Server.StartServer()
