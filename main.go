@@ -18,7 +18,7 @@ func main() {
 	logger.Info.Println(*mockClient)
 	if *mockClient == "producer" {
 		go ProducerClient()
-	} else if *mockClient == "subscriber" {
+	} else if *mockClient == "consumer" {
 		go consumerClient()
 	}
 

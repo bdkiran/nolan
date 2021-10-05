@@ -194,21 +194,21 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
 
-	//flag := false
+	var segmentContainsOffset *segment
 	// Get the segment that holds the offset
 	for _, seg := range cl.segments {
-		logger.Error.Println(seg.path)
-		if seg.startingOffset < offset {
-			logger.Info.Println("Base offset is less then: " + seg.path)
+		if seg.startingOffset <= offset {
+			segmentContainsOffset = seg
 		} else {
-			logger.Info.Println("Base offset is greater then: " + seg.path)
+			break
 		}
 	}
 
+	logger.Info.Println(segmentContainsOffset.path)
 	//TODO: Load correct segment, not just the newest segment
-	newestSeg := cl.segments[len(cl.segments)-1]
+	//newestSeg := cl.segments[len(cl.segments)-1]
 
-	buff, err := newestSeg.readAt(offset)
+	buff, err := segmentContainsOffset.readAt(offset)
 	if err != nil {
 		logger.Error.Println(err)
 		return nil, err

@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 
 	logger "github.com/bdkiran/nolan/utils"
@@ -65,18 +67,26 @@ func newSegment(directory string, offset int) (*segment, error) {
 }
 
 func loadSegment(indexPath string, logPath string) (*segment, error) {
+	logBase := filepath.Base(logPath)
+	offsetStr := strings.TrimSuffix(logBase, logSuffix)
+	baseOffset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		return nil, err
+	}
+
+	loggly, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
+
 	seg := &segment{
 		path:           logPath,
 		maxBytes:       1000,
-		startingOffset: 0,
+		startingOffset: baseOffset,
+		log:            loggly,
+		reader:         loggly,
+		writer:         loggly,
 	}
-	loggly, err := os.OpenFile(seg.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return seg, err
-	}
-	seg.log = loggly
-	seg.reader = loggly
-	seg.writer = loggly
 
 	fi, err := loggly.Stat()
 	if err != nil {
