@@ -15,20 +15,20 @@ func main() {
 
 	flag.Parse()
 
-	logger.Info.Println(*mockClient)
-	if *mockClient == "producer" {
-		go ProducerClient()
-	} else if *mockClient == "consumer" {
-		go consumerClient()
-	}
-
-	logger.Info.Println(*debugPtr)
 	if *debugPtr {
 		Debug()
 		return
 	}
 
-	RunBroker()
+	logger.Info.Println(*mockClient)
+	if *mockClient == "producer" {
+		producerClient(1)
+	} else if *mockClient == "consumer" {
+		consumerClient(10)
+	} else {
+		RunBroker()
+	}
+
 }
 
 func RunBroker() {
@@ -48,5 +48,16 @@ func Debug() {
 	// cl.Append([]byte("Dont hate it"))
 	// cl.Append([]byte("Another test"))
 	//cl.ReadLatestEntry()
-	cl.ReadAll()
+	//cl.ReadAll()
+	i := 0
+	for {
+		logger.Info.Println("Looking for offset: ", i)
+		buf, err := cl.Read(i)
+		if err != nil {
+			logger.Error.Println(err)
+			return
+		}
+		logger.Info.Println(string(buf))
+		i++
+	}
 }

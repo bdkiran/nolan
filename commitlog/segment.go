@@ -79,29 +79,30 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 		return nil, err
 	}
 
+	fi, err := loggly.Stat()
+	if err != nil {
+		return nil, err
+	}
+
 	seg := &segment{
 		path:           logPath,
 		maxBytes:       1000,
+		position:       int(fi.Size()),
 		startingOffset: baseOffset,
 		log:            loggly,
 		reader:         loggly,
 		writer:         loggly,
 	}
 
-	fi, err := loggly.Stat()
+	//Set up the segment index
+	indder, err := os.OpenFile(indexPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return seg, err
 	}
-	seg.position = int(fi.Size())
-
 	ind := &index{
-		path: indexPath,
+		path:      indexPath,
+		indexFile: indder,
 	}
-	indder, err := os.OpenFile(ind.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return seg, err
-	}
-	ind.indexFile = indder
 
 	seg.index = ind
 
@@ -111,7 +112,7 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 	}
 
 	totalEntries := seg.index.loadIndex()
-	seg.nextOffset = totalEntries
+	seg.nextOffset = totalEntries + seg.startingOffset
 
 	return seg, nil
 }
@@ -146,7 +147,8 @@ func (seg *segment) readAt(offset int) (returnBuff []byte, err error) {
 	seg.mu.Lock()
 	defer seg.mu.Unlock()
 	var buff []byte
-	if offset >= seg.nextOffset {
+	//Do we want to do this with the base offset??
+	if offset >= seg.nextOffset-seg.startingOffset {
 		return nil, errors.New("offset out of bounds")
 	} else {
 		ent := seg.index.entries[offset]
@@ -182,12 +184,10 @@ func (seg *segment) readAll() error {
 }
 
 func (s *segment) logPath() string {
-	//TODO: Change from position to something else?
 	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.startingOffset, logSuffix))
 }
 
 func (s *segment) indexPath() string {
-	//TODO: Change from position to something else?
 	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.startingOffset, indexSuffix))
 }
 

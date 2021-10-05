@@ -73,7 +73,11 @@ func (broker *Broker) handleConsumer(req *ReMessage) []byte {
 	commitlog := broker.topics[req.topic]
 	requestMesageBuffer, err := commitlog.Read(offset)
 	if err != nil {
-		logger.Error.Println("No message: ", err)
+		if err.Error() == "offset out of bounds" {
+			logger.Error.Println("No message: ", err)
+			return []byte("No Message\n")
+		}
+		logger.Error.Println("Unexpected error: ", err)
 		return []byte{}
 	}
 	requestMesageBuffer = append(requestMesageBuffer, "\n"...)

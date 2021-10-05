@@ -147,7 +147,6 @@ func (cl *Commitlog) loadSegments() error {
 		latestSegment := cl.segments[len(cl.segments)-1]
 		cl.vCurrentSegment.Store(latestSegment)
 	}
-
 	return nil
 }
 
@@ -155,6 +154,8 @@ func (cl *Commitlog) split() error {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
 	seg := cl.getCurrentSegment()
+	logger.Info.Println(seg.path)
+	logger.Info.Println(seg.nextOffset)
 	segment, err := newSegment(cl.path, seg.nextOffset)
 	if err != nil {
 		return err
@@ -194,6 +195,8 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
 
+	//This should be optomized. Should probably check the current segment first?
+	//Then do this??
 	var segmentContainsOffset *segment
 	// Get the segment that holds the offset
 	for _, seg := range cl.segments {
@@ -203,14 +206,9 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 			break
 		}
 	}
-
-	logger.Info.Println(segmentContainsOffset.path)
-	//TODO: Load correct segment, not just the newest segment
-	//newestSeg := cl.segments[len(cl.segments)-1]
-
-	buff, err := segmentContainsOffset.readAt(offset)
+	searchOffset := offset - segmentContainsOffset.startingOffset
+	buff, err := segmentContainsOffset.readAt(searchOffset)
 	if err != nil {
-		logger.Error.Println(err)
 		return nil, err
 	}
 	return buff, err

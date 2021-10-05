@@ -15,7 +15,7 @@ type Message struct {
 	Body  string
 }
 
-func ProducerClient() {
+func producerClient(rate int) {
 	time.Sleep(5 * time.Second)
 	logger.Info.Println("Creating connection..")
 	conn, err := net.Dial("tcp", "127.0.0.1:6969")
@@ -68,11 +68,11 @@ func ProducerClient() {
 
 		logger.Info.Println("Broker response: ", string(reply))
 		i++
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Duration(rate) * time.Second)
 	}
 }
 
-func consumerClient() {
+func consumerClient(timeout int) {
 	time.Sleep(5 * time.Second)
 	logger.Info.Println("Creating connection..")
 	conn, err := net.Dial("tcp", "127.0.0.1:6969")
@@ -97,15 +97,41 @@ func consumerClient() {
 	}
 	logger.Info.Println("Broker response: ", string(reply))
 
-	for {
-		buffer, err := bufio.NewReader(conn).ReadBytes('\n')
-		if err != nil {
-			logger.Warning.Println("Server left.", err)
+	var i int
+	for stay, timeoutChan := true, time.After(time.Duration(timeout)*time.Second); stay; {
+		i++
+		select {
+		case <-timeoutChan:
 			conn.Close()
-			return
+			stay = false
+		default:
+			buffer, err := bufio.NewReader(conn).ReadBytes('\n')
+			if err != nil {
+				logger.Warning.Println("Server left.", err)
+				conn.Close()
+				return
+			}
+			srvMessage := string(buffer[:len(buffer)-1])
+			if srvMessage == "No Message" {
+				logger.Info.Println("Server thing:", srvMessage)
+				time.Sleep(1 * time.Second)
+				conn.Write([]byte("AWK\n"))
+				continue
+			}
+			logger.Info.Println("Server message:", srvMessage)
+			conn.Write([]byte("AWK\n"))
 		}
-		srvMessage := string(buffer[:len(buffer)-1])
-		logger.Info.Println("Server message:", srvMessage)
-		conn.Write([]byte("AWK\n"))
 	}
+
+	// for {
+	// 	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
+	// 	if err != nil {
+	// 		logger.Warning.Println("Server left.", err)
+	// 		conn.Close()
+	// 		return
+	// 	}
+	// 	srvMessage := string(buffer[:len(buffer)-1])
+	// 	logger.Info.Println("Server message:", srvMessage)
+	// 	conn.Write([]byte("AWK\n"))
+	// }
 }
