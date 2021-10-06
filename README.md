@@ -52,7 +52,7 @@ Nolan utilizes a commit log to provide message resiliancy. This type of starage 
 
 ## Roadmap
 
-1. ~~ Implement a simple API for consuming an producing messages. ~~
+1. ~~Implement a simple API for consuming an producing messages.~~
 1. Extensive unit testing to provide significant coverage.
 1. Establish benchmarks to provide context about the speed and reliabilty.
 1. Wiki about the interals of how Nolan works.
