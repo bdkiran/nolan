@@ -2,7 +2,7 @@
 
 ![nolan workflow](https://github.com/bdkiran/nolan/actions/workflows/go.yml/badge.svg)
 
-Nolan is a tool that allows for messaging infrastrucure. It provides fast but resiliant messaging to build stream and pub-sub messaging.
+Nolan is a simple messaging application. It provides fast but resiliant messaging to build stream and pub-sub messaging.
 
 ## Getting Started
 
