@@ -177,18 +177,6 @@ func (l *Commitlog) getCurrentSegment() *segment {
 }
 
 /*
-	Reads everything written to the commit log, probably should be used to just debug
-*/
-func (cl *Commitlog) ReadAll() {
-	cl.mu.Lock()
-	defer cl.mu.Unlock()
-	logger.Info.Println("Reading total segments: ", len(cl.segments))
-	for _, seg := range cl.segments {
-		seg.readAll()
-	}
-}
-
-/*
 	Read will read a specific 'offset' within the commitlog,
 	if the offset is out of bounds returns error
 */
@@ -231,4 +219,16 @@ func (cl *Commitlog) Read(offset int) ([]byte, error) {
 // 		logger.Error.Println(err)
 // 	}
 // 	logger.Info.Println(latest)
+// }
+
+/*
+	Reads everything written to the commit log, probably should be used to just debug
+*/
+// func (cl *Commitlog) ReadAll() {
+// 	cl.mu.Lock()
+// 	defer cl.mu.Unlock()
+// 	logger.Info.Println("Reading total segments: ", len(cl.segments))
+// 	for _, seg := range cl.segments {
+// 		seg.readAll()
+// 	}
 // }

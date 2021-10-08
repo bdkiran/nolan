@@ -25,7 +25,7 @@ func main() {
 		producerClient(1)
 		return
 	} else if *mockClient == "consumer" {
-		consumerClient(10)
+		consumerClient(100, 2)
 		return
 	} else {
 		RunBroker()

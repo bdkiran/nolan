@@ -72,7 +72,7 @@ func producerClient(rate int) {
 	}
 }
 
-func consumerClient(timeout int) {
+func consumerClient(timeout int, waitTime int) {
 	time.Sleep(5 * time.Second)
 	logger.Info.Println("Creating connection..")
 	conn, err := net.Dial("tcp", "127.0.0.1:6969")
@@ -98,6 +98,7 @@ func consumerClient(timeout int) {
 	logger.Info.Println("Broker response: ", string(reply))
 
 	timeoutDuration := time.Duration(timeout) * time.Second
+	waitTimeDuration := time.Duration(waitTime) * time.Second
 
 	timerThing := time.NewTimer(timeoutDuration)
 
@@ -119,7 +120,7 @@ func consumerClient(timeout int) {
 			if srvMessage == "No Message" {
 				logger.Info.Println("Server thing:", srvMessage)
 				conn.Write([]byte("RETRY\n"))
-				time.Sleep(1 * time.Second)
+				time.Sleep(waitTimeDuration)
 			} else {
 				logger.Info.Println("Server message:", srvMessage)
 				conn.Write([]byte("AWK\n"))

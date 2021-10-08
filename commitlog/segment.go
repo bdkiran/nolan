@@ -159,30 +159,6 @@ func (seg *segment) readAt(offset int) (returnBuff []byte, err error) {
 	return buff, nil
 }
 
-func (seg *segment) readAll() error {
-	if seg.log == nil {
-		logger.Error.Println("Pointer is nil")
-		return errors.New("pointer to file is nil")
-	}
-
-	for _, ent := range seg.index.entries {
-		_, err := seg.log.Seek(int64(ent.Start), 0)
-		if err != nil {
-			logger.Error.Println(err)
-			return err
-		}
-		b2 := make([]byte, ent.Total)
-		n2, err := seg.reader.Read(b2)
-		if err != nil {
-			logger.Error.Println(err)
-			return err
-		}
-		logger.Info.Println("Reading segment: ", string(b2[:n2]))
-	}
-
-	return nil
-}
-
 func (s *segment) logPath() string {
 	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.startingOffset, logSuffix))
 }
@@ -218,4 +194,28 @@ func (s *segment) indexPath() string {
 // 		return "", err
 // 	}
 // 	return string(b2[:n2]), nil
+// }
+
+// func (seg *segment) readAll() error {
+// 	if seg.log == nil {
+// 		logger.Error.Println("Pointer is nil")
+// 		return errors.New("pointer to file is nil")
+// 	}
+
+// 	for _, ent := range seg.index.entries {
+// 		_, err := seg.log.Seek(int64(ent.Start), 0)
+// 		if err != nil {
+// 			logger.Error.Println(err)
+// 			return err
+// 		}
+// 		b2 := make([]byte, ent.Total)
+// 		n2, err := seg.reader.Read(b2)
+// 		if err != nil {
+// 			logger.Error.Println(err)
+// 			return err
+// 		}
+// 		logger.Info.Println("Reading segment: ", string(b2[:n2]))
+// 	}
+
+// 	return nil
 // }
