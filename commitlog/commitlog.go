@@ -95,7 +95,6 @@ func (cl *Commitlog) loadSegments() error {
 	}
 	sort.Strings(filesStrings)
 
-	//TODO: Support multiple segments!!
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), logSuffix) {
 			//Log file
@@ -150,6 +149,9 @@ func (cl *Commitlog) loadSegments() error {
 	return nil
 }
 
+/*
+	Split will create a new segment based on the current segment within the commitlog
+*/
 func (cl *Commitlog) split() error {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()

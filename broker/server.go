@@ -145,13 +145,17 @@ func (s *Server) consumerMessage(conn net.Conn, offset int, topic string) {
 	s.requestChan <- newProduceRequest
 
 	//Verify that we get to AWK message...
-	_, err := bufio.NewReader(conn).ReadBytes('\n')
+	response, err := bufio.NewReader(conn).ReadBytes('\n')
 	if err != nil {
 		logger.Warning.Println("Client left.")
 		conn.Close()
 		return
 	}
-	offset++
+
+	if string(response[:len(response)-1]) != "RETRY" {
+		logger.Info.Print(string(response))
+		offset++
+	}
 	s.consumerMessage(conn, offset, topic)
 }
 

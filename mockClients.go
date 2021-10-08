@@ -97,13 +97,43 @@ func consumerClient(timeout int) {
 	}
 	logger.Info.Println("Broker response: ", string(reply))
 
+	// var i int
+	// for stay, timeoutChan := true, time.After(time.Duration(timeout)*time.Second); stay; {
+	// 	i++
+	// 	select {
+	// 	case <-timeoutChan:
+	// 		conn.Close()
+	// 		stay = false
+	// 	default:
+	// 		buffer, err := bufio.NewReader(conn).ReadBytes('\n')
+	// 		if err != nil {
+	// 			logger.Warning.Println("Server left.", err)
+	// 			conn.Close()
+	// 			return
+	// 		}
+	// 		srvMessage := string(buffer[:len(buffer)-1])
+	// 		if srvMessage == "No Message" {
+	// 			logger.Info.Println("Server thing:", srvMessage)
+	// 			time.Sleep(1 * time.Second)
+	// 			conn.Write([]byte("AWK\n"))
+	// 			continue
+	// 		}
+	// 		logger.Info.Println("Server message:", srvMessage)
+	// 		conn.Write([]byte("AWK\n"))
+	// 	}
+	// }
+
+	timeoutDuration := time.Duration(timeout) * time.Second
+
+	timerThing := time.NewTimer(timeoutDuration)
+
 	var i int
-	for stay, timeoutChan := true, time.After(time.Duration(timeout)*time.Second); stay; {
+	for {
 		i++
 		select {
-		case <-timeoutChan:
+		case <-timerThing.C:
 			conn.Close()
-			stay = false
+			return
 		default:
 			buffer, err := bufio.NewReader(conn).ReadBytes('\n')
 			if err != nil {
@@ -114,12 +144,13 @@ func consumerClient(timeout int) {
 			srvMessage := string(buffer[:len(buffer)-1])
 			if srvMessage == "No Message" {
 				logger.Info.Println("Server thing:", srvMessage)
+				conn.Write([]byte("RETRY\n"))
 				time.Sleep(1 * time.Second)
+			} else {
+				logger.Info.Println("Server message:", srvMessage)
 				conn.Write([]byte("AWK\n"))
-				continue
+				timerThing.Reset(timeoutDuration)
 			}
-			logger.Info.Println("Server message:", srvMessage)
-			conn.Write([]byte("AWK\n"))
 		}
 	}
 
