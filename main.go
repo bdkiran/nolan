@@ -22,10 +22,10 @@ func main() {
 
 	logger.Info.Println(*mockClient)
 	if *mockClient == "producer" {
-		producerClient(1)
+		NewProducer()
 		return
 	} else if *mockClient == "consumer" {
-		consumerClient(100, 2)
+		NewConsumer()
 		return
 	} else {
 		RunBroker()
