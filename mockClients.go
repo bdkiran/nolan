@@ -2,19 +2,14 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"time"
 
+	"github.com/bdkiran/nolan/broker"
 	logger "github.com/bdkiran/nolan/utils"
 )
-
-type Message struct {
-	Title string
-	Body  string
-}
 
 type actionType string
 
@@ -46,16 +41,16 @@ func NewProducer() {
 
 	i := 0
 	for {
-		title := fmt.Sprintf("Message %d", i)
-		body := fmt.Sprintf("Body %d", i)
+		key := []byte(fmt.Sprintf("Key %d", i))
+		value := []byte(fmt.Sprintf("Value %d", i))
 
-		m := Message{title, body}
-		messageBuffer, err := json.Marshal(m)
-		if err != nil {
-			logger.Error.Fatalln(err)
-			return
+		message := broker.Message{
+			Timestamp: time.Now(),
+			Key:       key,
+			Value:     value,
 		}
-		err = nolanClient.ProduceMessage(messageBuffer)
+
+		err = nolanClient.ProduceMessage(message)
 		if err != nil {
 			logger.Error.Println(err)
 			return
@@ -110,7 +105,7 @@ func (nolanConn *nolanConnection) CreateConnection() error {
 		return err
 	}
 
-	reply := make([]byte, 256)
+	reply := make([]byte, 128)
 
 	numberOfBytes, err := nolanConn.socketConnection.Read(reply)
 	if err != nil {
@@ -129,18 +124,18 @@ func (nolanConn *nolanConnection) CreateConnection() error {
 	return nil
 }
 
-func (nolanConn *nolanConnection) ProduceMessage(message []byte) error {
-	logger.Info.Println(string(message))
-	message = append(message, "\n"...)
+func (nolanConn *nolanConnection) ProduceMessage(message broker.Message) error {
+	msg, _ := message.Encode()
+	msg = append(msg, "\n"...)
 
-	_, err := nolanConn.socketConnection.Write(message)
+	_, err := nolanConn.socketConnection.Write(msg)
 	if err != nil {
 		nolanConn.socketConnection.Close()
 		logger.Error.Fatal(err)
 		return err
 	}
 
-	reply := make([]byte, 256)
+	reply := make([]byte, 128)
 
 	numberOfBytes, err := nolanConn.socketConnection.Read(reply)
 	if err != nil {
@@ -182,13 +177,21 @@ func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int)
 				nolanConn.socketConnection.Close()
 				return
 			}
-			srvMessage := string(buffer[:len(buffer)-1])
-			if srvMessage == "No Message" {
-				logger.Info.Println("Server thing:", srvMessage)
+			srvMessage := buffer[:len(buffer)-1]
+			srvMessageString := string(srvMessage)
+			if srvMessageString == "No Message" {
+				logger.Info.Println("Server thing:", srvMessageString)
 				nolanConn.socketConnection.Write([]byte("RETRY\n"))
 				time.Sleep(waitTimeDuration)
 			} else {
-				logger.Info.Println("Server message:", srvMessage)
+				mt, err := broker.Decode(srvMessage)
+				if err != nil {
+					logger.Error.Fatalln(err)
+				}
+				logger.Info.Println(mt.Timestamp)
+				logger.Info.Println(string(mt.Key))
+				logger.Info.Println(string(mt.Value))
+
 				nolanConn.socketConnection.Write([]byte("AWK\n"))
 				timerThing.Reset(pollTimeoutDuration)
 			}

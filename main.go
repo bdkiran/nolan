@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"time"
 
 	"github.com/bdkiran/nolan/broker"
 	"github.com/bdkiran/nolan/commitlog"
@@ -10,6 +12,7 @@ import (
 
 func main() {
 	logger.LoggerInit(false)
+
 	mockClient := flag.String("client", "", "Flag to start the test producer or consumer")
 	debugPtr := flag.Bool("debug", false, "Debug the commitlog by reading it")
 
@@ -28,6 +31,7 @@ func main() {
 		NewConsumer()
 		return
 	} else {
+		printArt()
 		RunBroker()
 	}
 
@@ -62,4 +66,40 @@ func Debug() {
 		logger.Info.Println(string(buf))
 		i++
 	}
+}
+
+func DebugEncoder() {
+	tthing := time.Now()
+	logger.Info.Println(tthing)
+	m := broker.Message{
+		Timestamp: tthing,
+		Key:       []byte("hello"),
+		Value:     []byte("world"),
+	}
+	x, _ := m.Encode()
+	logger.Info.Print(x)
+	mt, err := broker.Decode(x)
+	if err != nil {
+		logger.Error.Fatalln(err)
+	}
+	logger.Info.Println(mt.Timestamp)
+	logger.Info.Println(string(mt.Key))
+	logger.Info.Println(string(mt.Value))
+}
+
+func printArt() {
+	asciiArt :=
+		`
+=============================================================================
+_____  ___     ______   ___           __     _____  ___   
+(\"   \|"  \   /    " \ |"  |         /""\   (\"   \|"  \  
+|.\\   \    | // ____  \||  |        /    \  |.\\   \    | 
+|: \.   \\  |/  /    ) :):  |       /' /\  \ |: \.   \\  | 
+|.  \    \. (: (____/ // \  |___   //  __'  \|.  \    \. | 
+|    \    \ |\        / ( \_|:  \ /   /  \\  \    \    \ | 
+ \___|\____\) \"_____/   \_______|___/    \___)___|\____\) 
+                                                           																		  
+=============================================================================
+`
+	fmt.Println(asciiArt)
 }
