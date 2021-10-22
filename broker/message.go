@@ -3,21 +3,23 @@ package broker
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"time"
 )
 
 type Message struct {
+	Size      uint64
 	Timestamp time.Time
 	Key       []byte
 	Value     []byte
 }
 
+//TODO: improve the encoding process, this is probably really inefficient
 func (message *Message) Encode() ([]byte, error) {
 	buffer := make([]byte, 264)
 	timeThing := message.Timestamp.UnixMilli()
-	fmt.Println(timeThing)
+	//Write the time
 	n := binary.PutUvarint(buffer, uint64(timeThing))
+	//Write the key
 	n += binary.PutUvarint(buffer[n:], uint64(len(message.Key)))
 	buffer = buffer[:n]
 	buffer = append(buffer, message.Key...)
@@ -40,8 +42,6 @@ func Decode(data []byte) (Message, error) {
 	if err != nil {
 		return mt, err
 	}
-	tsthing := time.Unix(0, int64(ts)*int64(time.Millisecond))
-	fmt.Println(int64(ts))
 	keySize, err := binary.ReadUvarint(reader)
 	if err != nil {
 		return mt, err
@@ -57,7 +57,7 @@ func Decode(data []byte) (Message, error) {
 	reader.Read(buf2)
 
 	mt = Message{
-		Timestamp: tsthing,
+		Timestamp: time.Unix(0, int64(ts)*int64(time.Millisecond)),
 		Key:       buf,
 		Value:     buf2,
 	}

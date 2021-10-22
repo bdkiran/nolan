@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"encoding/binary"
 	"strconv"
 
 	"github.com/bdkiran/nolan/commitlog"
@@ -35,16 +36,16 @@ func (broker *Broker) Run() {
 	for {
 		var res []byte
 		req := <-broker.Server.requestChan
-		if req.requestType == "PRODUCE" {
+		if req.MessageType == PRODUCER {
 			res = broker.handleProduce(req)
-		} else if req.requestType == "CONSUME" {
+		} else if req.MessageType == CONSUMER {
 			res = broker.handleConsumer(req)
 		} else {
-			logger.Error.Println("Unknown request: ", req.requestType)
+			logger.Error.Println("Unknown request: ", req.MessageType)
 			res = []byte{}
 		}
-		broker.Server.resposeChan <- &ReMessage{
-			requestType: req.requestType,
+		broker.Server.resposeChan <- &SocketMessage{
+			MessageType: req.MessageType,
 			topic:       req.topic,
 			body:        res,
 			conn:        req.conn,
@@ -52,7 +53,7 @@ func (broker *Broker) Run() {
 	}
 }
 
-func (broker *Broker) handleProduce(req *ReMessage) []byte {
+func (broker *Broker) handleProduce(req *SocketMessage) []byte {
 	requestMesage := req.body
 	logger.Info.Println(string(requestMesage))
 
@@ -62,10 +63,11 @@ func (broker *Broker) handleProduce(req *ReMessage) []byte {
 	if err != nil {
 		logger.Error.Println(err)
 	}
-	return []byte("AWK\n")
+	socketMsg := getSocketBytes([]byte("AWK"))
+	return socketMsg
 }
 
-func (broker *Broker) handleConsumer(req *ReMessage) []byte {
+func (broker *Broker) handleConsumer(req *SocketMessage) []byte {
 	offset, err := strconv.Atoi(string(req.body))
 	if err != nil {
 		logger.Error.Println("Message problem: ", string(req.body), err)
@@ -76,11 +78,21 @@ func (broker *Broker) handleConsumer(req *ReMessage) []byte {
 	if err != nil {
 		if err.Error() == "offset out of bounds" {
 			logger.Error.Println("No message: ", err)
-			return []byte("No Message\n")
+			socketMsg := getSocketBytes([]byte("No Message"))
+			return socketMsg
+
 		}
 		logger.Error.Println("Unexpected error: ", err)
 		return []byte{}
 	}
-	requestMesageBuffer = append(requestMesageBuffer, "\n"...)
-	return requestMesageBuffer
+	socketMsg := getSocketBytes([]byte(requestMesageBuffer))
+	return socketMsg
+}
+
+//TODO: Create a generic library and look at reducing more code
+func getSocketBytes(msg []byte) []byte {
+	fullMsg := make([]byte, 4)
+	binary.LittleEndian.PutUint32(fullMsg, uint32(len(msg)))
+	fullMsg = append(fullMsg, msg...)
+	return fullMsg
 }

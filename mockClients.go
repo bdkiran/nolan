@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -126,27 +126,27 @@ func (nolanConn *nolanConnection) CreateConnection() error {
 
 func (nolanConn *nolanConnection) ProduceMessage(message broker.Message) error {
 	msg, _ := message.Encode()
-	msg = append(msg, "\n"...)
+	fullMsg := getSocketBytes(msg)
 
-	_, err := nolanConn.socketConnection.Write(msg)
+	_, err := nolanConn.socketConnection.Write(fullMsg)
 	if err != nil {
 		nolanConn.socketConnection.Close()
 		logger.Error.Fatal(err)
 		return err
 	}
 
-	reply := make([]byte, 128)
-
-	numberOfBytes, err := nolanConn.socketConnection.Read(reply)
+	size, err := getSocketMessageSize(nolanConn.socketConnection)
 	if err != nil {
+		logger.Error.Println(err)
+		nolanConn.socketConnection.Close()
+		return err
+	}
+	reply := make([]byte, size)
+	if _, err := nolanConn.socketConnection.Read(reply); err != nil {
 		nolanConn.socketConnection.Close()
 		logger.Error.Fatal(err)
 		return err
 	}
-	//trim the buffer chars
-	reply = reply[:numberOfBytes]
-	//trim the newline
-	reply = reply[:len(reply)-1]
 	//check the response....
 	if string(reply) != "AWK" {
 		nolanConn.socketConnection.Close()
@@ -171,20 +171,27 @@ func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int)
 			nolanConn.socketConnection.Close()
 			return
 		default:
-			buffer, err := bufio.NewReader(nolanConn.socketConnection).ReadBytes('\n')
+			size, err := getSocketMessageSize(nolanConn.socketConnection)
 			if err != nil {
-				logger.Warning.Println("Server left.", err)
+				logger.Error.Println(err)
 				nolanConn.socketConnection.Close()
 				return
 			}
-			srvMessage := buffer[:len(buffer)-1]
-			srvMessageString := string(srvMessage)
+			b := make([]byte, size)
+			if _, err = nolanConn.socketConnection.Read(b); err != nil {
+				logger.Error.Println("Client left. Unable to read message.", err)
+				nolanConn.socketConnection.Close()
+				return
+			}
+
+			srvMessageString := string(b)
 			if srvMessageString == "No Message" {
 				logger.Info.Println("Server thing:", srvMessageString)
-				nolanConn.socketConnection.Write([]byte("RETRY\n"))
+				retryMsg := getSocketBytes([]byte("RETRY"))
+				nolanConn.socketConnection.Write(retryMsg)
 				time.Sleep(waitTimeDuration)
 			} else {
-				mt, err := broker.Decode(srvMessage)
+				mt, err := broker.Decode(b)
 				if err != nil {
 					logger.Error.Fatalln(err)
 				}
@@ -192,124 +199,29 @@ func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int)
 				logger.Info.Println(string(mt.Key))
 				logger.Info.Println(string(mt.Value))
 
-				nolanConn.socketConnection.Write([]byte("AWK\n"))
+				awkMsg := getSocketBytes([]byte("AWK"))
+				nolanConn.socketConnection.Write(awkMsg)
 				timerThing.Reset(pollTimeoutDuration)
 			}
 		}
 	}
 }
 
-// func producerClient(rate int) {
-// 	time.Sleep(5 * time.Second)
-// 	logger.Info.Println("Creating connection..")
-// 	conn, err := net.Dial("tcp", "127.0.0.1:6969")
-// 	if err != nil {
-// 		logger.Error.Fatal(err)
-// 	}
-// 	defer conn.Close()
+//TODO: Create a generic library and look at reducing more code
+func getSocketMessageSize(conn net.Conn) (uint32, error) {
+	p := make([]byte, 4)
+	_, err := conn.Read(p)
+	if err != nil {
+		return uint32(0), err
+	}
+	size := binary.LittleEndian.Uint32(p)
+	return size, nil
+}
 
-// 	//Build our connection string
-// 	topic := "topic1"
-// 	conectionString := fmt.Sprintf("PRODUCER:%s\n", topic)
-// 	//Establish connection
-// 	_, err = conn.Write([]byte(conectionString))
-// 	if err != nil {
-// 		logger.Error.Fatal(err)
-// 	}
-
-// 	reply := make([]byte, 1024)
-
-// 	_, err = conn.Read(reply)
-// 	if err != nil {
-// 		logger.Error.Fatal(err)
-// 	}
-// 	logger.Info.Println("Broker response: ", string(reply))
-
-// 	i := 0
-// 	for {
-// 		title := fmt.Sprintf("Message %d", i)
-// 		body := fmt.Sprintf("Body %d", i)
-
-// 		m := Message{title, body}
-// 		messageBuffer, err := json.Marshal(m)
-// 		if err != nil {
-// 			logger.Error.Fatalln(err)
-// 		}
-
-// 		messageBuffer = append(messageBuffer, "\n"...)
-
-// 		_, err = conn.Write(messageBuffer)
-// 		if err != nil {
-// 			logger.Error.Fatal(err)
-// 		}
-
-// 		reply := make([]byte, 1024)
-
-// 		_, err = conn.Read(reply)
-// 		if err != nil {
-// 			logger.Error.Fatal(err)
-// 		}
-
-// 		logger.Info.Println("Broker response: ", string(reply))
-// 		i++
-// 		time.Sleep(time.Duration(rate) * time.Second)
-// 	}
-// }
-
-// func consumerClient(timeout int, waitTime int) {
-// 	time.Sleep(5 * time.Second)
-// 	logger.Info.Println("Creating connection..")
-// 	conn, err := net.Dial("tcp", "127.0.0.1:6969")
-// 	if err != nil {
-// 		logger.Error.Fatal(err)
-// 	}
-// 	defer conn.Close()
-
-// 	//Establish connection
-// 	topic := "topic1"
-// 	conectionString := fmt.Sprintf("CONSUMER:%s\n", topic)
-// 	_, err = conn.Write([]byte(conectionString))
-// 	if err != nil {
-// 		logger.Error.Fatal(err)
-// 	}
-
-// 	reply := make([]byte, 1024)
-
-// 	_, err = conn.Read(reply)
-// 	if err != nil {
-// 		logger.Error.Fatal(err)
-// 	}
-// 	logger.Info.Println("Broker response: ", string(reply))
-
-// 	timeoutDuration := time.Duration(timeout) * time.Second
-// 	waitTimeDuration := time.Duration(waitTime) * time.Second
-
-// 	timerThing := time.NewTimer(timeoutDuration)
-
-// 	var i int
-// 	for {
-// 		i++
-// 		select {
-// 		case <-timerThing.C:
-// 			conn.Close()
-// 			return
-// 		default:
-// 			buffer, err := bufio.NewReader(conn).ReadBytes('\n')
-// 			if err != nil {
-// 				logger.Warning.Println("Server left.", err)
-// 				conn.Close()
-// 				return
-// 			}
-// 			srvMessage := string(buffer[:len(buffer)-1])
-// 			if srvMessage == "No Message" {
-// 				logger.Info.Println("Server thing:", srvMessage)
-// 				conn.Write([]byte("RETRY\n"))
-// 				time.Sleep(waitTimeDuration)
-// 			} else {
-// 				logger.Info.Println("Server message:", srvMessage)
-// 				conn.Write([]byte("AWK\n"))
-// 				timerThing.Reset(timeoutDuration)
-// 			}
-// 		}
-// 	}
-// }
+//TODO: Create a generic library and look at reducing more code
+func getSocketBytes(msg []byte) []byte {
+	fullMsg := make([]byte, 4)
+	binary.LittleEndian.PutUint32(fullMsg, uint32(len(msg)))
+	fullMsg = append(fullMsg, msg...)
+	return fullMsg
+}

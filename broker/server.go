@@ -3,6 +3,7 @@ package broker
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -24,12 +25,19 @@ type Server struct {
 	port           int
 	connectionType string
 	listener       net.Listener
-	requestChan    chan *ReMessage
-	resposeChan    chan *ReMessage
+	requestChan    chan *SocketMessage
+	resposeChan    chan *SocketMessage
 }
 
-type ReMessage struct {
-	requestType string
+type socketMessageType string
+
+const (
+	PRODUCER socketMessageType = "PRODUCER"
+	CONSUMER socketMessageType = "CONSUMER"
+)
+
+type SocketMessage struct {
+	MessageType socketMessageType
 	topic       string
 	body        []byte
 	conn        io.ReadWriter
@@ -40,8 +48,8 @@ func NewServer() *Server {
 		host:           connHost,
 		port:           connPort,
 		connectionType: connType,
-		requestChan:    make(chan *ReMessage, 256),
-		resposeChan:    make(chan *ReMessage, 256),
+		requestChan:    make(chan *SocketMessage, 256),
+		resposeChan:    make(chan *SocketMessage, 256),
 	}
 
 	return &s
@@ -117,17 +125,23 @@ func parseConnectionMessage(connectionMessage []byte) (string, string, error) {
 }
 
 func (s *Server) producerMessage(conn net.Conn, topic string) {
-	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
+	size, err := getSocketMessageSize(conn)
 	if err != nil {
-		logger.Warning.Println("Client left.")
+		logger.Error.Println(err)
 		conn.Close()
 		return
 	}
-	logger.Info.Println(string(buffer[:len(buffer)-1]))
-	newProduceRequest := &ReMessage{
-		requestType: "PRODUCE",
+	b := make([]byte, size)
+	if _, err = conn.Read(b); err != nil {
+		logger.Error.Println("Client left. Unable to read message.", err)
+		conn.Close()
+		return
+	}
+
+	newProduceRequest := &SocketMessage{
+		MessageType: PRODUCER,
 		topic:       topic,
-		body:        buffer[:len(buffer)-1],
+		body:        b,
 		conn:        conn,
 	}
 
@@ -136,30 +150,46 @@ func (s *Server) producerMessage(conn net.Conn, topic string) {
 }
 
 func (s *Server) consumerMessage(conn net.Conn, offset int, topic string) {
-	newProduceRequest := &ReMessage{
-		requestType: "CONSUME",
+	newConsumeRequest := &SocketMessage{
+		MessageType: CONSUMER,
 		topic:       topic,
 		body:        []byte(strconv.Itoa(offset)),
 		conn:        conn,
 	}
-	s.requestChan <- newProduceRequest
+	s.requestChan <- newConsumeRequest
 
 	//Verify that we get to AWK message...
-	response, err := bufio.NewReader(conn).ReadBytes('\n')
+	size, err := getSocketMessageSize(conn)
 	if err != nil {
-		logger.Warning.Println("Client left.")
+		logger.Error.Println(err)
+		conn.Close()
+		return
+	}
+	b := make([]byte, size)
+	if _, err = conn.Read(b); err != nil {
+		logger.Error.Println("Client left. Unable to read message.", err)
 		conn.Close()
 		return
 	}
 
-	if string(response[:len(response)-1]) != "RETRY" {
-		logger.Info.Print(string(response))
+	if string(b) != "RETRY" {
+		logger.Info.Print(string(b))
 		offset++
 	}
 	s.consumerMessage(conn, offset, topic)
 }
 
-func (s *Server) handleResponse(res *ReMessage) {
+func (s *Server) handleResponse(res *SocketMessage) {
 	body := res.body
 	res.conn.Write(body)
+}
+
+func getSocketMessageSize(conn net.Conn) (uint32, error) {
+	p := make([]byte, 4)
+	_, err := conn.Read(p)
+	if err != nil {
+		return uint32(0), err
+	}
+	size := binary.LittleEndian.Uint32(p)
+	return size, nil
 }
