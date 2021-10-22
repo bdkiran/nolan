@@ -2,14 +2,14 @@ package broker
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"strconv"
 
-	logger "github.com/bdkiran/nolan/utils"
+	"github.com/bdkiran/nolan/logger"
+	"github.com/bdkiran/nolan/utils"
 )
 
 // These should not be hard coded, pass these in as a configuration
@@ -89,22 +89,17 @@ func (s *Server) StartServer() {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	size, err := getSocketMessageSize(conn)
+	msg, err := utils.GetSocketMessage(conn)
 	if err != nil {
 		logger.Error.Println(err)
 		conn.Close()
 		return
 	}
-	b := make([]byte, size)
-	if _, err = conn.Read(b); err != nil {
-		logger.Error.Println("Client left. Unable to read message.", err)
-		conn.Close()
-		return
-	}
-	requestMessage, topic := parseConnectionMessage(b)
-	logger.Info.Println("Client message:", string(b))
+	logger.Info.Println("Client message:", string(msg))
+	requestMessage, topic := parseConnectionMessage(msg)
+
 	//Send AWK message
-	socketMsg := getSocketBytes([]byte("AWK"))
+	socketMsg := utils.GetSocketBytes([]byte("AWK"))
 	conn.Write(socketMsg)
 
 	if requestMessage == "PRODUCER" {
@@ -128,15 +123,9 @@ func parseConnectionMessage(connectionMessage []byte) (string, string) {
 }
 
 func (s *Server) producerMessage(conn net.Conn, topic string) {
-	size, err := getSocketMessageSize(conn)
+	msg, err := utils.GetSocketMessage(conn)
 	if err != nil {
 		logger.Error.Println(err)
-		conn.Close()
-		return
-	}
-	b := make([]byte, size)
-	if _, err = conn.Read(b); err != nil {
-		logger.Error.Println("Client left. Unable to read message.", err)
 		conn.Close()
 		return
 	}
@@ -144,7 +133,7 @@ func (s *Server) producerMessage(conn net.Conn, topic string) {
 	newProduceRequest := &SocketMessage{
 		MessageType: PRODUCER,
 		topic:       topic,
-		body:        b,
+		body:        msg,
 		conn:        conn,
 	}
 
@@ -161,20 +150,14 @@ func (s *Server) consumerMessage(conn net.Conn, offset int, topic string) {
 	}
 	s.requestChan <- newConsumeRequest
 
-	//Verify that we get to AWK message...
-	size, err := getSocketMessageSize(conn)
+	msg, err := utils.GetSocketMessage(conn)
 	if err != nil {
 		logger.Error.Println(err)
 		conn.Close()
 		return
 	}
-	b := make([]byte, size)
-	if _, err = conn.Read(b); err != nil {
-		logger.Error.Println("Client left. Unable to read message.", err)
-		conn.Close()
-		return
-	}
-	switch returnMsg := string(b); returnMsg {
+
+	switch returnMsg := string(msg); returnMsg {
 	case "AWK":
 		offset++
 		s.consumerMessage(conn, offset, topic)
@@ -189,15 +172,4 @@ func (s *Server) consumerMessage(conn net.Conn, offset int, topic string) {
 func (s *Server) handleResponse(res *SocketMessage) {
 	body := res.body
 	res.conn.Write(body)
-}
-
-//TODO: Create a generic library and look at reducing more code
-func getSocketMessageSize(conn net.Conn) (uint32, error) {
-	p := make([]byte, 4)
-	_, err := conn.Read(p)
-	if err != nil {
-		return uint32(0), err
-	}
-	size := binary.LittleEndian.Uint32(p)
-	return size, nil
 }

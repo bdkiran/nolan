@@ -7,7 +7,7 @@ import (
 
 	"github.com/bdkiran/nolan/broker"
 	"github.com/bdkiran/nolan/commitlog"
-	logger "github.com/bdkiran/nolan/utils"
+	"github.com/bdkiran/nolan/logger"
 )
 
 func main() {

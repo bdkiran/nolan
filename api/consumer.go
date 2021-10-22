@@ -4,8 +4,14 @@ import (
 	"time"
 
 	"github.com/bdkiran/nolan/broker"
-	logger "github.com/bdkiran/nolan/utils"
+	"github.com/bdkiran/nolan/utils"
+
+	"github.com/bdkiran/nolan/logger"
 )
+
+func Consume() {
+	logger.Info.Println("Poopy butthole")
+}
 
 func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int) {
 	pollTimeoutDuration := time.Duration(pollTimeout) * time.Second
@@ -22,27 +28,21 @@ func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int)
 			nolanConn.socketConnection.Close()
 			return
 		default:
-			size, err := getSocketMessageSize(nolanConn.socketConnection)
+			msg, err := utils.GetSocketMessage(nolanConn.socketConnection)
 			if err != nil {
 				logger.Error.Println(err)
 				nolanConn.socketConnection.Close()
 				return
 			}
-			b := make([]byte, size)
-			if _, err = nolanConn.socketConnection.Read(b); err != nil {
-				logger.Error.Println("Client left. Unable to read message.", err)
-				nolanConn.socketConnection.Close()
-				return
-			}
 
-			srvMessageString := string(b)
+			srvMessageString := string(msg)
 			if srvMessageString == "No Message" {
 				logger.Info.Println("Server thing:", srvMessageString)
-				retryMsg := getSocketBytes([]byte("RETRY"))
+				retryMsg := utils.GetSocketBytes([]byte("RETRY"))
 				nolanConn.socketConnection.Write(retryMsg)
 				time.Sleep(waitTimeDuration)
 			} else {
-				mt, err := broker.Decode(b)
+				mt, err := broker.Decode(msg)
 				if err != nil {
 					logger.Error.Fatalln(err)
 				}
@@ -50,7 +50,7 @@ func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int)
 				logger.Info.Println(string(mt.Key))
 				logger.Info.Println(string(mt.Value))
 
-				awkMsg := getSocketBytes([]byte("AWK"))
+				awkMsg := utils.GetSocketBytes([]byte("AWK"))
 				nolanConn.socketConnection.Write(awkMsg)
 				timerThing.Reset(pollTimeoutDuration)
 			}

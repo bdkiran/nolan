@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	logger "github.com/bdkiran/nolan/utils"
+	"github.com/bdkiran/nolan/logger"
 )
 
 const (

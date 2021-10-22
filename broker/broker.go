@@ -1,11 +1,11 @@
 package broker
 
 import (
-	"encoding/binary"
 	"strconv"
 
 	"github.com/bdkiran/nolan/commitlog"
-	logger "github.com/bdkiran/nolan/utils"
+	"github.com/bdkiran/nolan/logger"
+	"github.com/bdkiran/nolan/utils"
 )
 
 type Broker struct {
@@ -63,7 +63,7 @@ func (broker *Broker) handleProduce(req *SocketMessage) []byte {
 	if err != nil {
 		logger.Error.Println(err)
 	}
-	socketMsg := getSocketBytes([]byte("AWK"))
+	socketMsg := utils.GetSocketBytes([]byte("AWK"))
 	return socketMsg
 }
 
@@ -78,21 +78,13 @@ func (broker *Broker) handleConsumer(req *SocketMessage) []byte {
 	if err != nil {
 		if err.Error() == "offset out of bounds" {
 			logger.Error.Println("No message: ", err)
-			socketMsg := getSocketBytes([]byte("No Message"))
+			socketMsg := utils.GetSocketBytes([]byte("No Message"))
 			return socketMsg
 
 		}
 		logger.Error.Println("Unexpected error: ", err)
 		return []byte{}
 	}
-	socketMsg := getSocketBytes([]byte(requestMesageBuffer))
+	socketMsg := utils.GetSocketBytes([]byte(requestMesageBuffer))
 	return socketMsg
-}
-
-//TODO: Create a generic library and look at reducing more code
-func getSocketBytes(msg []byte) []byte {
-	fullMsg := make([]byte, 4)
-	binary.LittleEndian.PutUint32(fullMsg, uint32(len(msg)))
-	fullMsg = append(fullMsg, msg...)
-	return fullMsg
 }

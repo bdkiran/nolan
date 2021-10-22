@@ -7,7 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	logger "github.com/bdkiran/nolan/utils"
+	"github.com/bdkiran/nolan/logger"
 )
 
 type Commitlog struct {
