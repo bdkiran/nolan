@@ -184,6 +184,7 @@ func (s *Server) handleResponse(res *SocketMessage) {
 	res.conn.Write(body)
 }
 
+//TODO: Create a generic library and look at reducing more code
 func getSocketMessageSize(conn net.Conn) (uint32, error) {
 	p := make([]byte, 4)
 	_, err := conn.Read(p)

@@ -1,3 +1,7 @@
+/*
+Alot of the functions here should be move to an api folder, as they can be reused to build clients.
+Mock should be more of an e2e test to verify that things to break
+*/
 package main
 
 import (
