@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -90,18 +89,23 @@ func (s *Server) StartServer() {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	buffer, err := bufio.NewReader(conn).ReadBytes('\n')
-
+	size, err := getSocketMessageSize(conn)
 	if err != nil {
-		logger.Warning.Println("Client left.")
+		logger.Error.Println(err)
 		conn.Close()
 		return
 	}
-	requestMessage, topic, _ := parseConnectionMessage(buffer)
-
-	logger.Info.Println("Client message:", string(buffer[:len(buffer)-1]))
-
-	conn.Write(buffer)
+	b := make([]byte, size)
+	if _, err = conn.Read(b); err != nil {
+		logger.Error.Println("Client left. Unable to read message.", err)
+		conn.Close()
+		return
+	}
+	requestMessage, topic := parseConnectionMessage(b)
+	logger.Info.Println("Client message:", string(b))
+	//Send AWK message
+	socketMsg := getSocketBytes([]byte("AWK"))
+	conn.Write(socketMsg)
 
 	if requestMessage == "PRODUCER" {
 		s.producerMessage(conn, topic)
@@ -114,13 +118,12 @@ func (s *Server) handleConnection(conn net.Conn) {
 	}
 }
 
-func parseConnectionMessage(connectionMessage []byte) (string, string, error) {
-	splitConMsg := connectionMessage[:len(connectionMessage)-1]
-	newBytes := bytes.Split(splitConMsg, []byte(":"))
-	logger.Info.Println(string(newBytes[0]))
-	logger.Info.Println(string(newBytes[1]))
+func parseConnectionMessage(connectionMessage []byte) (string, string) {
+	splitBytes := bytes.Split(connectionMessage, []byte(":"))
+	logger.Info.Println(string(splitBytes[0]))
+	logger.Info.Println(string(splitBytes[1]))
 
-	return string(newBytes[0]), string(newBytes[1]), nil
+	return string(splitBytes[0]), string(splitBytes[1])
 
 }
 
@@ -171,12 +174,16 @@ func (s *Server) consumerMessage(conn net.Conn, offset int, topic string) {
 		conn.Close()
 		return
 	}
-
-	if string(b) != "RETRY" {
-		logger.Info.Print(string(b))
+	switch returnMsg := string(b); returnMsg {
+	case "AWK":
 		offset++
+		s.consumerMessage(conn, offset, topic)
+	case "RETRY":
+		s.consumerMessage(conn, offset, topic)
+	default:
+		logger.Error.Println("Did not recieved expected response: ", returnMsg)
+		conn.Close()
 	}
-	s.consumerMessage(conn, offset, topic)
 }
 
 func (s *Server) handleResponse(res *SocketMessage) {
