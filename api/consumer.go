@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"sync"
 	"time"
 
 	"github.com/bdkiran/nolan/broker"
@@ -9,29 +11,66 @@ import (
 	"github.com/bdkiran/nolan/logger"
 )
 
-func Consume() {
-	logger.Info.Println("Poopy butthole")
+type Consumer struct {
+	nolanConn       *nolanConnection
+	recievedMsgChan chan *broker.Message
+	pollTimeout     int
+	waitTime        int
+	messageQueSync  sync.Once
 }
 
-func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int) {
-	pollTimeoutDuration := time.Duration(pollTimeout) * time.Second
-	waitTimeDuration := time.Duration(waitTime) * time.Second
+func NewConsumer(topic string) (*Consumer, error) {
+	nolanClient, err := createClient(CONSUMER, topic)
+	if err != nil {
+		logger.Error.Println(err)
+		return nil, err
+	}
 
-	timerThing := time.NewTimer(pollTimeoutDuration)
+	err = nolanClient.createConnection()
+	if err != nil {
+		logger.Error.Println(err)
+		return nil, err
+	}
+
+	consumer := &Consumer{
+		nolanConn:       nolanClient,
+		recievedMsgChan: make(chan *broker.Message, 256),
+		pollTimeout:     10,
+		waitTime:        1,
+	}
+	return consumer, nil
+}
+
+func (consumer *Consumer) Consume() (*broker.Message, error) {
+	go consumer.messageQueSync.Do(func() { consumer.RecieveMessages() })
+
+	msg := <-consumer.recievedMsgChan
+	if msg == nil {
+		return nil, errors.New("channel closed, no new messages")
+	}
+	return msg, nil
+}
+
+func (consumer *Consumer) RecieveMessages() {
+	pollTimeoutDuration := time.Duration(consumer.pollTimeout) * time.Second
+	waitTimeDuration := time.Duration(consumer.waitTime) * time.Second
+
+	pollTimer := time.NewTimer(pollTimeoutDuration)
 
 	var i int
 	for {
 		i++
 		select {
-		case <-timerThing.C:
+		case <-pollTimer.C:
 			logger.Warning.Println("Consumer timeout hit. Closing Connection.")
-			nolanConn.socketConnection.Close()
+			consumer.nolanConn.socketConnection.Close()
+			close(consumer.recievedMsgChan)
 			return
 		default:
-			msg, err := utils.GetSocketMessage(nolanConn.socketConnection)
+			msg, err := utils.GetSocketMessage(consumer.nolanConn.socketConnection)
 			if err != nil {
 				logger.Error.Println(err)
-				nolanConn.socketConnection.Close()
+				consumer.nolanConn.socketConnection.Close()
 				return
 			}
 
@@ -39,20 +78,18 @@ func (nolanConn *nolanConnection) ConsumeMessages(pollTimeout int, waitTime int)
 			if srvMessageString == "No Message" {
 				logger.Info.Println("Server thing:", srvMessageString)
 				retryMsg := utils.GetSocketBytes([]byte("RETRY"))
-				nolanConn.socketConnection.Write(retryMsg)
+				consumer.nolanConn.socketConnection.Write(retryMsg)
 				time.Sleep(waitTimeDuration)
 			} else {
 				mt, err := broker.Decode(msg)
 				if err != nil {
 					logger.Error.Fatalln(err)
 				}
-				logger.Info.Println(mt.Timestamp)
-				logger.Info.Println(string(mt.Key))
-				logger.Info.Println(string(mt.Value))
+				consumer.recievedMsgChan <- &mt
 
 				awkMsg := utils.GetSocketBytes([]byte("AWK"))
-				nolanConn.socketConnection.Write(awkMsg)
-				timerThing.Reset(pollTimeoutDuration)
+				consumer.nolanConn.socketConnection.Write(awkMsg)
+				pollTimer.Reset(pollTimeoutDuration)
 			}
 		}
 	}

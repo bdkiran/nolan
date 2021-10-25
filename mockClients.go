@@ -9,14 +9,8 @@ import (
 	"github.com/bdkiran/nolan/logger"
 )
 
-func NewProducer() {
-	nolanClient, err := api.CreateClient(api.Producer)
-	if err != nil {
-		logger.Error.Println(err)
-		return
-	}
-
-	err = nolanClient.CreateConnection()
+func ProduceMessages() {
+	producer, err := api.NewProducer("topic1")
 	if err != nil {
 		logger.Error.Println(err)
 		return
@@ -33,7 +27,7 @@ func NewProducer() {
 			Value:     value,
 		}
 
-		err = nolanClient.ProduceMessage(message)
+		err = producer.ProduceMessage(message)
 		if err != nil {
 			logger.Error.Println(err)
 			return
@@ -43,17 +37,19 @@ func NewProducer() {
 	}
 }
 
-func NewConsumer() {
-	nolanClient, err := api.CreateClient(api.Consumer)
+func ConsumeMessages() {
+	consumer, err := api.NewConsumer("topic1")
 	if err != nil {
 		logger.Error.Println(err)
 		return
+	}
+	for {
+		msg, err := consumer.Consume()
+		if err != nil {
+			logger.Warning.Println(err)
+			break
+		}
+		logger.Info.Printf("%v, %s, %s\n", msg.Timestamp, msg.Key, msg.Value)
 	}
 
-	err = nolanClient.CreateConnection()
-	if err != nil {
-		logger.Error.Println(err)
-		return
-	}
-	nolanClient.ConsumeMessages(10, 1)
 }

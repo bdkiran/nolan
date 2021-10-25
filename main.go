@@ -25,10 +25,10 @@ func main() {
 
 	logger.Info.Println(*mockClient)
 	if *mockClient == "producer" {
-		NewProducer()
+		ProduceMessages()
 		return
 	} else if *mockClient == "consumer" {
-		NewConsumer()
+		ConsumeMessages()
 		return
 	} else {
 		printArt()

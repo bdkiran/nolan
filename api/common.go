@@ -12,8 +12,8 @@ import (
 type actionType string
 
 const (
-	Producer actionType = "PRODUCER"
-	Consumer actionType = "CONSUMER"
+	PRODUCER actionType = "PRODUCER"
+	CONSUMER actionType = "CONSUMER"
 )
 
 type nolanConnection struct {
@@ -24,12 +24,12 @@ type nolanConnection struct {
 	socketConnection net.Conn
 }
 
-func CreateClient(aType actionType) (*nolanConnection, error) {
+func createClient(aType actionType, topic string) (*nolanConnection, error) {
 	nolanConn := nolanConnection{
 		address: "127.0.0.1",
 		port:    6969,
 		action:  aType,
-		topic:   "topic1",
+		topic:   topic,
 	}
 
 	dialConn := fmt.Sprintf("%s:%d", nolanConn.address, nolanConn.port)
@@ -43,7 +43,7 @@ func CreateClient(aType actionType) (*nolanConnection, error) {
 	return &nolanConn, nil
 }
 
-func (nolanConn *nolanConnection) CreateConnection() error {
+func (nolanConn *nolanConnection) createConnection() error {
 	conectionString := fmt.Sprintf("%s:%s", nolanConn.action, nolanConn.topic)
 	connectionStringBytes := utils.GetSocketBytes([]byte(conectionString))
 	//Establish connection
@@ -68,34 +68,3 @@ func (nolanConn *nolanConnection) CreateConnection() error {
 	logger.Info.Println("Broker response: ", string(replyMsg))
 	return nil
 }
-
-// func getSocketMessage(conn net.Conn) ([]byte, error) {
-// 	size, err := getSocketMessageSize(conn)
-// 	if err != nil {
-// 		logger.Error.Println(err)
-// 		return []byte{}, err
-// 	}
-// 	reply := make([]byte, size)
-// 	if _, err := conn.Read(reply); err != nil {
-// 		return []byte{}, err
-// 	}
-// 	return reply, nil
-// }
-
-// func getSocketMessageSize(conn net.Conn) (uint32, error) {
-// 	p := make([]byte, 4)
-// 	_, err := conn.Read(p)
-// 	if err != nil {
-// 		return uint32(0), err
-// 	}
-// 	size := binary.LittleEndian.Uint32(p)
-// 	return size, nil
-// }
-
-// //TODO: Create a generic library and look at reducing more code
-// func getSocketBytes(msg []byte) []byte {
-// 	fullMsg := make([]byte, 4)
-// 	binary.LittleEndian.PutUint32(fullMsg, uint32(len(msg)))
-// 	fullMsg = append(fullMsg, msg...)
-// 	return fullMsg
-// }

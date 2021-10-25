@@ -8,26 +8,51 @@ import (
 	"github.com/bdkiran/nolan/utils"
 )
 
-func (nolanConn *nolanConnection) ProduceMessage(message broker.Message) error {
+type Producer struct {
+	nolanConn *nolanConnection
+}
+
+func NewProducer(topic string) (*Producer, error) {
+	nolanClient, err := createClient(PRODUCER, topic)
+	if err != nil {
+		logger.Error.Println(err)
+		return nil, err
+	}
+
+	err = nolanClient.createConnection()
+	if err != nil {
+		logger.Error.Println(err)
+		return nil, err
+	}
+
+	producer := &Producer{
+		nolanConn: nolanClient,
+	}
+
+	return producer, nil
+
+}
+
+func (producer *Producer) ProduceMessage(message broker.Message) error {
 	msg, _ := message.Encode()
 	fullMsg := utils.GetSocketBytes(msg)
 
-	_, err := nolanConn.socketConnection.Write(fullMsg)
+	_, err := producer.nolanConn.socketConnection.Write(fullMsg)
 	if err != nil {
-		nolanConn.socketConnection.Close()
+		producer.nolanConn.socketConnection.Close()
 		logger.Error.Fatal(err)
 		return err
 	}
 
-	replyMsg, err := utils.GetSocketMessage(nolanConn.socketConnection)
+	replyMsg, err := utils.GetSocketMessage(producer.nolanConn.socketConnection)
 	if err != nil {
 		logger.Error.Println(err)
-		nolanConn.socketConnection.Close()
+		producer.nolanConn.socketConnection.Close()
 		return err
 	}
 	//check the response....
 	if string(replyMsg) != "AWK" {
-		nolanConn.socketConnection.Close()
+		producer.nolanConn.socketConnection.Close()
 		return errors.New("did not recieve correct awk message")
 	}
 	logger.Info.Println("Broker response: ", string(replyMsg))
