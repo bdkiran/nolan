@@ -47,7 +47,7 @@ func ConsumeMessages() {
 		msg, err := consumer.Consume()
 		if err != nil {
 			logger.Warning.Println(err)
-			break
+			continue
 		}
 		logger.Info.Printf("%v, %s, %s\n", msg.Timestamp, msg.Key, msg.Value)
 	}
