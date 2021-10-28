@@ -19,7 +19,7 @@ func NewProducer(topic string) (*Producer, error) {
 		return nil, err
 	}
 
-	err = nolanClient.createConnection()
+	err = nolanClient.createConnection(0)
 	if err != nil {
 		logger.Error.Println(err)
 		return nil, err

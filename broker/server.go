@@ -96,7 +96,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		return
 	}
 	logger.Info.Println("Client message:", string(msg))
-	requestMessage, topic := parseConnectionMessage(msg)
+	requestMessage, topic, offset := parseConnectionMessage(msg)
 
 	//Send AWK message
 	socketMsg := utils.GetSocketBytes([]byte("AWK"))
@@ -106,20 +106,25 @@ func (s *Server) handleConnection(conn net.Conn) {
 		s.producerMessage(conn, topic)
 	} else if requestMessage == "CONSUMER" {
 		//Consumer should pass in initial offset
-		s.consumerMessage(conn, 0, topic)
+		s.consumerMessage(conn, offset, topic)
 	} else {
 		logger.Warning.Println("Invalid request sent:", requestMessage)
 		conn.Close()
 	}
 }
 
-func parseConnectionMessage(connectionMessage []byte) (string, string) {
+func parseConnectionMessage(connectionMessage []byte) (string, string, int) {
 	splitBytes := bytes.Split(connectionMessage, []byte(":"))
 	logger.Info.Println(string(splitBytes[0]))
 	logger.Info.Println(string(splitBytes[1]))
+	offset, err := strconv.Atoi(string(splitBytes[2]))
+	if err != nil {
+		offset = 0
+		logger.Error.Println(err)
+	}
+	logger.Info.Println(offset)
 
-	return string(splitBytes[0]), string(splitBytes[1])
-
+	return string(splitBytes[0]), string(splitBytes[1]), offset
 }
 
 func (s *Server) producerMessage(conn net.Conn, topic string) {

@@ -34,7 +34,7 @@ func createClient(aType actionType, topic string) (*nolanConnection, error) {
 	return &nolanConn, nil
 }
 
-func (nolanConn *nolanConnection) createConnection() error {
+func (nolanConn *nolanConnection) createConnection(offset int) error {
 	dialConn := fmt.Sprintf("%s:%d", nolanConn.address, nolanConn.port)
 	logger.Info.Println("Creating connection to ", dialConn)
 	conn, err := net.Dial("tcp", dialConn)
@@ -44,7 +44,7 @@ func (nolanConn *nolanConnection) createConnection() error {
 	}
 	nolanConn.socketConnection = conn
 
-	conectionString := fmt.Sprintf("%s:%s", nolanConn.action, nolanConn.topic)
+	conectionString := fmt.Sprintf("%s:%s:%d", nolanConn.action, nolanConn.topic, offset)
 	connectionStringBytes := utils.GetSocketBytes([]byte(conectionString))
 
 	//Establish connection

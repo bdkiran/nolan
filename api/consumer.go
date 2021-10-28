@@ -19,9 +19,10 @@ type Consumer struct {
 	waitTime        int
 	messageQueSync  sync.Mutex
 	executing       bool
+	offset          int
 }
 
-func NewConsumer(topic string) (*Consumer, error) {
+func NewConsumer(topic string, offset int) (*Consumer, error) {
 	nolanClient, err := createClient(CONSUMER, topic)
 	if err != nil {
 		logger.Error.Println(err)
@@ -35,6 +36,7 @@ func NewConsumer(topic string) (*Consumer, error) {
 		pollTimeout:     10,
 		waitTime:        1,
 		executing:       false,
+		offset:          offset,
 	}
 	return consumer, nil
 }
@@ -61,7 +63,7 @@ func (consumer *Consumer) RecieveMessages() {
 	consumer.messageQueSync.Lock()
 	defer consumer.messageQueSync.Unlock()
 
-	err := consumer.nolanConn.createConnection()
+	err := consumer.nolanConn.createConnection(consumer.offset)
 	if err != nil {
 		logger.Error.Println(err)
 		return
@@ -104,6 +106,7 @@ func (consumer *Consumer) RecieveMessages() {
 				}
 				consumer.recievedMsgChan <- &mt
 				consumer.msgChanState <- true
+				consumer.offset++
 				awkMsg := utils.GetSocketBytes([]byte("AWK"))
 				consumer.nolanConn.socketConnection.Write(awkMsg)
 				pollTimer.Reset(pollTimeoutDuration)

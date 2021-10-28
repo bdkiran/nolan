@@ -18,7 +18,7 @@ func ProduceMessages() {
 
 	i := 0
 	for {
-		key := []byte(fmt.Sprintf("Key %d", i))
+		key := []byte{}
 		value := []byte(fmt.Sprintf("Value %d", i))
 
 		message := broker.Message{
@@ -38,7 +38,7 @@ func ProduceMessages() {
 }
 
 func ConsumeMessages() {
-	consumer, err := api.NewConsumer("topic1")
+	consumer, err := api.NewConsumer("topic1", 0)
 	if err != nil {
 		logger.Error.Println(err)
 		return
