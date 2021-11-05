@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"time"
 
 	"github.com/bdkiran/nolan/broker"
 	"github.com/bdkiran/nolan/commitlog"
@@ -68,25 +67,6 @@ func Debug() {
 		logger.Info.Println(string(buf))
 		i++
 	}
-}
-
-func DebugEncoder() {
-	tthing := time.Now()
-	logger.Info.Println(tthing)
-	m := broker.Message{
-		Timestamp: tthing,
-		Key:       []byte("hello"),
-		Value:     []byte("world"),
-	}
-	x, _ := m.Encode()
-	logger.Info.Print(x)
-	mt, err := broker.Decode(x)
-	if err != nil {
-		logger.Error.Fatalln(err)
-	}
-	logger.Info.Println(mt.Timestamp)
-	logger.Info.Println(string(mt.Key))
-	logger.Info.Println(string(mt.Value))
 }
 
 func printArt() {

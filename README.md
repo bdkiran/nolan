@@ -8,10 +8,10 @@ Nolan is a simple messaging application. It provides fast but resiliant messagin
 
 The application is written in pure golang(for now). The makefile produces an executable in the root project libarary for easy debugging.
 
-The application expects there to be a directory called `logs` to write the logs/indexs to. If this is your first time running the application you need to creat this directory. For a production type build this directory would probably exist elsewhere but for now this assists in debugging.
+The application expects there to be a directory called `logs` in the root project directory. This is used to write the logs/indexs to. If this is your first time running the application you need to create this directory. For a production type build this directory would probably exist elsewhere but for now this assists in debugging.
 
 ```bash
-$ mkdir logs
+mkdir logs
 ```
 
 ## Useful Commands
@@ -19,31 +19,31 @@ $ mkdir logs
 To build the application
 
 ```bash
-$ make build
+make build
 ```
 
 To run a nolan broker
 
 ```bash
-$ ./nolan
+./nolan
 ```
 
 To run the consumer client
 
 ```bash
-$ ./nolan -client=consumer
+./nolan -client=consumer
 ```
 
 To run the producer client
 
 ```bash
-$ ./nolan -client=producer
+./nolan -client=producer
 ```
 
 To debug the commitlog, and print out all of the entries.
 
 ```bash
-$ ./nolan -debug=true
+./nolan -debug=true
 ```
 
 ## Design
