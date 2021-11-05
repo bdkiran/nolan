@@ -17,19 +17,16 @@ func NewBroker() *Broker {
 	server := NewServer()
 	broker := Broker{
 		Server: server,
-		topics: make(map[string]*commitlog.Commitlog),
 	}
-	return &broker
-}
 
-func (broker *Broker) CreateTopic(topicName string, directory string) error {
-	cl, err := commitlog.New(directory)
+	topics, err := broker.loadTopicSnapshot()
 	if err != nil {
-		logger.Error.Println("Unable to initilize commitlog", err)
-		return err
+		logger.Warning.Println(err)
+		topics = make(map[string]*commitlog.Commitlog)
 	}
-	broker.topics[topicName] = cl
-	return nil
+
+	broker.topics = topics
+	return &broker
 }
 
 func (broker *Broker) Run() {

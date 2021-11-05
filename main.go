@@ -40,7 +40,9 @@ func main() {
 func RunBroker() {
 	finish := make(chan bool)
 	broker := broker.NewBroker()
-	broker.CreateTopic("topic1", "logs/partition0")
+	if len(broker.GetTopics()) == 0 {
+		broker.CreateTopic("topic1", "logs/partition0")
+	}
 	go broker.Server.StartServer()
 	go broker.Run()
 	<-finish

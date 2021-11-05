@@ -18,7 +18,7 @@ func ProduceMessages() {
 
 	i := 0
 	for {
-		key := []byte{}
+		key := []byte(fmt.Sprintf("Key %d", i))
 		value := []byte(fmt.Sprintf("Value %d", i))
 
 		message := broker.Message{
@@ -46,8 +46,12 @@ func ConsumeMessages() {
 	for {
 		msg, err := consumer.Consume()
 		if err != nil {
-			logger.Warning.Println(err)
-			continue
+			if err.Error() == "no new messages" {
+				continue
+			} else {
+				logger.Warning.Println(err)
+				break
+			}
 		}
 		logger.Info.Printf("%v, %s, %s\n", msg.Timestamp, msg.Key, msg.Value)
 	}

@@ -40,6 +40,10 @@ func New(path string) (*Commitlog, error) {
 	return &cl, nil
 }
 
+func (cl *Commitlog) GetPath() string {
+	return cl.path
+}
+
 /*
 	Append appends a new entry to the commitlog
 */

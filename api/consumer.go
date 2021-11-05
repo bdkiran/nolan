@@ -33,8 +33,8 @@ func NewConsumer(topic string, offset int) (*Consumer, error) {
 		nolanConn:       nolanClient,
 		recievedMsgChan: make(chan *broker.Message, 256),
 		msgChanState:    make(chan bool),
-		pollTimeout:     10,
-		waitTime:        1,
+		pollTimeout:     20,
+		waitTime:        2,
 		executing:       false,
 		offset:          offset,
 	}
@@ -42,7 +42,6 @@ func NewConsumer(topic string, offset int) (*Consumer, error) {
 }
 
 func (consumer *Consumer) Consume() (*broker.Message, error) {
-	logger.Info.Println("Consume called")
 	if !consumer.executing {
 		go consumer.RecieveMessages()
 	}
@@ -51,7 +50,6 @@ func (consumer *Consumer) Consume() (*broker.Message, error) {
 		return nil, errors.New("connection ended")
 	}
 	if !state {
-		logger.Info.Println(state)
 		return nil, errors.New("no new messages")
 	}
 	msg := <-consumer.recievedMsgChan
@@ -59,7 +57,6 @@ func (consumer *Consumer) Consume() (*broker.Message, error) {
 }
 
 func (consumer *Consumer) RecieveMessages() {
-	logger.Info.Println("Recieve messages called")
 	consumer.messageQueSync.Lock()
 	defer consumer.messageQueSync.Unlock()
 
@@ -95,7 +92,7 @@ func (consumer *Consumer) RecieveMessages() {
 			srvMessageString := string(msg)
 			if srvMessageString == "No Message" {
 				consumer.msgChanState <- false
-				logger.Info.Println("Server thing:", srvMessageString)
+				//logger.Info.Println("Server thing:", srvMessageString)
 				retryMsg := utils.GetSocketBytes([]byte("RETRY"))
 				consumer.nolanConn.socketConnection.Write(retryMsg)
 				time.Sleep(waitTimeDuration)
