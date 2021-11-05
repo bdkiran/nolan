@@ -2,6 +2,7 @@ package broker
 
 import (
 	"encoding/gob"
+	"errors"
 	"os"
 
 	"github.com/bdkiran/nolan/commitlog"
@@ -13,6 +14,14 @@ type topic struct {
 	TopicDirectory string
 }
 
+func (broker *Broker) GetTopics() []string {
+	allTopics := []string{}
+	for topicName := range broker.topics {
+		allTopics = append(allTopics, topicName)
+	}
+	return allTopics
+}
+
 func (broker *Broker) CreateTopic(topicName string, directory string) error {
 	cl, err := commitlog.New(directory)
 	if err != nil {
@@ -21,16 +30,28 @@ func (broker *Broker) CreateTopic(topicName string, directory string) error {
 	}
 	broker.topics[topicName] = cl
 	logger.Info.Printf("Created %s topic successfully\n", topicName)
-	go broker.takeTopicSnapshot() //Should this be in a go routine?
+	err = broker.takeTopicSnapshot() //Should this be in a go routine?
+	if err != nil {
+		logger.Error.Println("Unable to take a snapsnot", err)
+		return err
+	}
 	return nil
 }
 
-func (broker *Broker) GetTopics() []string {
-	allTopics := []string{}
-	for topicName := range broker.topics {
-		allTopics = append(allTopics, topicName)
+func (broker *Broker) DeleteTopic(topic string) error {
+	_, ok := broker.topics[topic]
+	if ok {
+		delete(broker.topics, topic)
+	} else {
+		return errors.New("topic does not exist, unable to delete")
 	}
-	return allTopics
+	logger.Info.Printf("Topic %s has been deleted", topic)
+	err := broker.takeTopicSnapshot() //Should this be in a go routine?
+	if err != nil {
+		logger.Error.Println("Unable to take a snapsnot", err)
+		return err
+	}
+	return nil
 }
 
 func (broker *Broker) takeTopicSnapshot() error {
