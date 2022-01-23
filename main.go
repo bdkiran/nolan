@@ -31,16 +31,16 @@ func main() {
 		return
 	} else {
 		printArt()
-		RunBroker()
+		RunBroker("logs")
 	}
 
 }
 
-func RunBroker() {
+func RunBroker(dataDirectory string) {
 	finish := make(chan bool)
-	broker := broker.NewBroker()
+	broker := broker.NewBroker(dataDirectory)
 	if len(broker.GetTopics()) == 0 {
-		broker.CreateTopic("topic1", "logs/partition0")
+		broker.CreateTopic("topic1")
 	}
 	go broker.Server.StartServer()
 	go broker.Run()

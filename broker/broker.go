@@ -9,14 +9,16 @@ import (
 )
 
 type Broker struct {
-	Server *Server
-	topics map[string]*commitlog.Commitlog
+	Server    *Server
+	topics    map[string]*commitlog.Commitlog
+	directory string
 }
 
-func NewBroker() *Broker {
+func NewBroker(directory string) *Broker {
 	server := NewServer()
 	broker := Broker{
-		Server: server,
+		Server:    server,
+		directory: directory,
 	}
 
 	topics, err := broker.loadTopicSnapshot()

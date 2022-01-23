@@ -22,6 +22,7 @@ type Commitlog struct {
 	If no partion already exists, then one will be created.
 */
 func New(path string) (*Commitlog, error) {
+	logger.Info.Println("creating new directory: ", path)
 	cl := Commitlog{
 		path: path,
 	}

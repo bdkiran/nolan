@@ -7,6 +7,7 @@ import (
 
 	"github.com/bdkiran/nolan/commitlog"
 	"github.com/bdkiran/nolan/logger"
+	"github.com/bdkiran/nolan/utils"
 )
 
 type topic struct {
@@ -22,8 +23,10 @@ func (broker *Broker) GetTopics() []string {
 	return allTopics
 }
 
-func (broker *Broker) CreateTopic(topicName string, directory string) error {
-	cl, err := commitlog.New(directory)
+func (broker *Broker) CreateTopic(topicName string) error {
+	topicDirectory := broker.directory + "/" + utils.RandomString(5)
+	logger.Info.Println("Creating new directory: ", topicDirectory)
+	cl, err := commitlog.New(topicDirectory)
 	if err != nil {
 		logger.Error.Println("Unable to initilize commitlog", err)
 		return err
@@ -65,8 +68,9 @@ func (broker *Broker) takeTopicSnapshot() error {
 
 		snapTopics = append(snapTopics, snapTopic)
 	}
+	snapshotPath := broker.directory + "/topics.gob"
 
-	file, err := os.OpenFile("topics.gob", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.OpenFile(snapshotPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		logger.Warning.Println(err)
 		return err
@@ -85,7 +89,10 @@ func (broker *Broker) takeTopicSnapshot() error {
 func (broker *Broker) loadTopicSnapshot() (map[string]*commitlog.Commitlog, error) {
 	var snapTopics []topic
 	decodedMap := make(map[string]*commitlog.Commitlog)
-	file, err := os.Open("topics.gob")
+
+	snapshotPath := broker.directory + "/topics.gob"
+
+	file, err := os.Open(snapshotPath)
 	if err != nil {
 		logger.Warning.Println(err)
 		return decodedMap, err
