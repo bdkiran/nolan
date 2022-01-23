@@ -22,6 +22,20 @@ type entry struct {
 	Total int32
 }
 
+// Create or load a new index based on a path to the index file
+func newIndex(indexPath string) (*index, error) {
+	indder, err := os.OpenFile(indexPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
+	ind := &index{
+		path:      indexPath,
+		indexFile: indder,
+	}
+	return ind, nil
+}
+
+// Add a new entry to the index file
 func (ind *index) addEntry(position int, totalBytes int) {
 	ind.mu.Lock()
 	defer ind.mu.Unlock()
@@ -39,6 +53,7 @@ func (ind *index) addEntry(position int, totalBytes int) {
 	ind.indexFile.Write(b.Bytes())
 }
 
+// Load the index etries from disk into the index object
 func (ind *index) loadIndex() int {
 	logger.Info.Println("Reading index..")
 	if ind.indexFile == nil {
@@ -72,12 +87,11 @@ func (ind *index) loadIndex() int {
 	return len(ind.entries)
 }
 
-/* Not implemented functions... */
-// func (ind *index) close() error {
-// 	ind.mu.Lock()
-// 	defer ind.mu.Unlock()
-// 	if err := ind.indexFile.Close(); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (ind *index) close() error {
+	ind.mu.Lock()
+	defer ind.mu.Unlock()
+	if err := ind.indexFile.Close(); err != nil {
+		return err
+	}
+	return nil
+}

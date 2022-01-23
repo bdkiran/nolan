@@ -66,6 +66,11 @@ func (cl *Commitlog) Append(message []byte) error {
 	if err != nil {
 		if err.Error() == "max segment length" {
 			cl.mu.Unlock()
+			// Clean the segments first....
+			err = cl.clean()
+			if err != nil {
+				return err
+			}
 			//Check for error if too many bytes in the segment -> then split
 			err = cl.split()
 			if err != nil {
@@ -128,7 +133,7 @@ func (cl *Commitlog) loadSegments() error {
 			} else {
 				logfileToLoad := cl.path + "/" + corespondingLogFile
 				indexFileToLoad := cl.path + "/" + file.Name()
-				seg, err := loadSegment(indexFileToLoad, logfileToLoad)
+				seg, err := loadSegment(logfileToLoad, indexFileToLoad)
 				if err != nil {
 					logger.Error.Fatal(err)
 				}
@@ -166,9 +171,7 @@ func (cl *Commitlog) split() error {
 	if err != nil {
 		return err
 	}
-
 	logger.Info.Println(segment.path)
-
 	cl.segments = append(cl.segments, segment)
 	//Set our current segment to the new segment created
 	cl.vCurrentSegment.Store(segment)

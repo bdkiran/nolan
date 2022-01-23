@@ -33,8 +33,8 @@ type segment struct {
 	mu             sync.Mutex
 }
 
+/* Create a new segment */
 func newSegment(directory string, offset int) (*segment, error) {
-	//Starting and lastest start in same place...
 	seg := &segment{
 		maxBytes:       1000,
 		position:       0,
@@ -51,22 +51,19 @@ func newSegment(directory string, offset int) (*segment, error) {
 	seg.reader = loggly
 	seg.writer = loggly
 
-	//Handle index creation
-	ind := &index{
-		path: seg.indexPath(),
-	}
-	indder, err := os.OpenFile(ind.path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	ind, err := newIndex(seg.indexPath())
 	if err != nil {
 		return seg, err
 	}
-	ind.indexFile = indder
+
 	//Add index pointer to our segment
 	seg.index = ind
 
 	return seg, nil
 }
 
-func loadSegment(indexPath string, logPath string) (*segment, error) {
+/* Load in a segment from disk, using the path to the logs and path to the index */
+func loadSegment(logPath string, indexPath string) (*segment, error) {
 	logBase := filepath.Base(logPath)
 	offsetStr := strings.TrimSuffix(logBase, logSuffix)
 	baseOffset, err := strconv.Atoi(offsetStr)
@@ -94,14 +91,9 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 		writer:         loggly,
 	}
 
-	//Set up the segment index
-	indder, err := os.OpenFile(indexPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	ind, err := newIndex(indexPath)
 	if err != nil {
 		return seg, err
-	}
-	ind := &index{
-		path:      indexPath,
-		indexFile: indder,
 	}
 
 	seg.index = ind
@@ -117,6 +109,7 @@ func loadSegment(indexPath string, logPath string) (*segment, error) {
 	return seg, nil
 }
 
+/* Write a new log to the segment. This will add a log to the log file with the data, and the metadata information to the index */
 func (seg *segment) write(message []byte) (int, error) {
 	seg.mu.Lock()
 	defer seg.mu.Unlock()
@@ -143,6 +136,7 @@ func (seg *segment) write(message []byte) (int, error) {
 	return numOfBytes, nil
 }
 
+/*Given an arbitrary offset, read the data stored on the segment*/
 func (seg *segment) readAt(offset int) (returnBuff []byte, err error) {
 	seg.mu.Lock()
 	defer seg.mu.Unlock()
@@ -167,15 +161,32 @@ func (s *segment) indexPath() string {
 	return filepath.Join(s.file, fmt.Sprintf(fileFormat, s.startingOffset, indexSuffix))
 }
 
-/* Unused/Not Implemented Functions */
-// func (seg *segment) close() error {
-// 	seg.mu.Lock()
-// 	defer seg.mu.Unlock()
-// 	if err := seg.log.Close(); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (seg *segment) delete() error {
+	if err := seg.close(); err != nil {
+		return err
+	}
+	seg.mu.Lock()
+	defer seg.mu.Unlock()
+	if err := os.Remove(seg.path); err != nil {
+		return err
+	}
+	if err := os.Remove(seg.index.path); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (seg *segment) close() error {
+	seg.mu.Lock()
+	defer seg.mu.Unlock()
+	if err := seg.log.Close(); err != nil {
+		return err
+	}
+	if err := seg.index.close(); err != nil {
+		return err
+	}
+	return nil
+}
 
 /* Deprecated functions */
 

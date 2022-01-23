@@ -67,6 +67,7 @@ func Debug() {
 		logger.Info.Println(string(buf))
 		i++
 	}
+
 }
 
 func printArt() {
