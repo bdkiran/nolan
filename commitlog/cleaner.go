@@ -4,8 +4,6 @@ import (
 	"github.com/bdkiran/nolan/logger"
 )
 
-const RETENTION_BYTES = 2000
-
 func (cl *Commitlog) clean() error {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
@@ -22,6 +20,12 @@ func (cl *Commitlog) deleteCleaner() ([]*segment, error) {
 	var cleanedSegments []*segment
 	if len(cl.segments) == 0 {
 		//return custom error...
+		return cl.segments, nil
+	}
+
+	//If the retention bytes are set to a negative number,
+	// We want to store these values indefinetly
+	if RETENTION_BYTES < 0 {
 		return cl.segments, nil
 	}
 

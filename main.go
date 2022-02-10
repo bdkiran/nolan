@@ -7,6 +7,7 @@ import (
 	"github.com/bdkiran/nolan/broker"
 	"github.com/bdkiran/nolan/commitlog"
 	"github.com/bdkiran/nolan/logger"
+	"github.com/bdkiran/nolan/utils"
 )
 
 func main() {
@@ -31,17 +32,17 @@ func main() {
 		return
 	} else {
 		printArt()
-		RunBroker("logs")
+		dataDirectory := utils.GetEnvrionmentVariableString("DATA_DIRECTORY", "logs")
+		RunBroker(dataDirectory)
 	}
-
 }
 
 func RunBroker(dataDirectory string) {
 	finish := make(chan bool)
 	broker := broker.NewBroker(dataDirectory)
-	if len(broker.GetTopics()) == 0 {
-		broker.CreateTopic("topic1")
-	}
+	// if len(broker.GetTopics()) == 0 {
+	// 	broker.CreateTopic("topic1")
+	// }
 	go broker.Server.StartServer()
 	go broker.Run()
 	<-finish

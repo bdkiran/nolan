@@ -8,6 +8,14 @@ import (
 	"sync/atomic"
 
 	"github.com/bdkiran/nolan/logger"
+	"github.com/bdkiran/nolan/utils"
+)
+
+var (
+	//Max bytes of the log, used by segment
+	LOG_MAX_BYTES = utils.GetEnvrionmentVariableInt("LOG_MAX_BYTES", 1000)
+	//Max retention byte of the commitlog, used by cleaner
+	RETENTION_BYTES = utils.GetEnvrionmentVariableInt("RETENTION_BYTES", 5000)
 )
 
 type Commitlog struct {
@@ -22,7 +30,7 @@ type Commitlog struct {
 	If no partion already exists, then one will be created.
 */
 func New(path string) (*Commitlog, error) {
-	logger.Info.Println("creating new directory: ", path)
+	logger.Info.Println("Opening directory: ", path)
 	cl := Commitlog{
 		path: path,
 	}

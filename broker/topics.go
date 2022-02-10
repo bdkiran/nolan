@@ -48,6 +48,7 @@ func (broker *Broker) DeleteTopic(topic string) error {
 	} else {
 		return errors.New("topic does not exist, unable to delete")
 	}
+	//We need to also delete the commitlog...
 	logger.Info.Printf("Topic %s has been deleted", topic)
 	err := broker.takeTopicSnapshot() //Should this be in a go routine?
 	if err != nil {

@@ -36,7 +36,7 @@ type segment struct {
 /* Create a new segment */
 func newSegment(directory string, offset int) (*segment, error) {
 	seg := &segment{
-		maxBytes:       1000,
+		maxBytes:       LOG_MAX_BYTES,
 		position:       0,
 		startingOffset: offset,
 		nextOffset:     offset,

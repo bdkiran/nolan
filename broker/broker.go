@@ -87,3 +87,27 @@ func (broker *Broker) handleConsumer(req *SocketMessage) []byte {
 	socketMsg := utils.GetSocketBytes([]byte(requestMesageBuffer))
 	return socketMsg
 }
+
+// func handleGetTopicMetadata() {
+
+// }
+
+func (broker *Broker) handleCreateTopicRequest(req *SocketMessage) []byte {
+	err := broker.CreateTopic(req.topic)
+	if err != nil {
+		socketMsg := utils.GetSocketBytes([]byte("Error"))
+		return socketMsg
+	}
+	socketMsg := utils.GetSocketBytes([]byte("Created"))
+	return socketMsg
+}
+
+func (broker *Broker) handleDeleteTopicRequest(req *SocketMessage) []byte {
+	err := broker.DeleteTopic(req.topic)
+	if err != nil {
+		socketMsg := utils.GetSocketBytes([]byte("Error"))
+		return socketMsg
+	}
+	socketMsg := utils.GetSocketBytes([]byte("Created"))
+	return socketMsg
+}

@@ -12,11 +12,14 @@ import (
 	"github.com/bdkiran/nolan/utils"
 )
 
-// These should not be hard coded, pass these in as a configuration
 const (
-	connHost = "127.0.0.1"
-	connPort = 6969
-	connType = "tcp"
+	CONNECTION_TYPE = "tcp"
+)
+
+// These should not be hard coded, pass these in as a configuration
+var (
+	CONNECTION_HOST = utils.GetEnvrionmentVariableString("HOST", "127.0.0.1")
+	CONNECTION_PORT = utils.GetEnvrionmentVariableInt("PORT", 6969)
 )
 
 type Server struct {
@@ -33,6 +36,7 @@ type socketMessageType string
 const (
 	PRODUCER socketMessageType = "PRODUCER"
 	CONSUMER socketMessageType = "CONSUMER"
+	TOPIC    socketMessageType = "TOPIC"
 )
 
 type SocketMessage struct {
@@ -44,9 +48,9 @@ type SocketMessage struct {
 
 func NewServer() *Server {
 	s := Server{
-		host:           connHost,
-		port:           connPort,
-		connectionType: connType,
+		host:           CONNECTION_HOST,
+		port:           CONNECTION_PORT,
+		connectionType: CONNECTION_TYPE,
 		requestChan:    make(chan *SocketMessage, 256),
 		resposeChan:    make(chan *SocketMessage, 256),
 	}
@@ -59,7 +63,7 @@ func (s *Server) StartServer() {
 	logger.Info.Printf("Starting %s server on %d\n", s.host, s.port)
 
 	connectionString := fmt.Sprintf("%s:%d", s.host, s.port)
-	listen, err := net.Listen(connType, connectionString)
+	listen, err := net.Listen(s.connectionType, connectionString)
 	if err != nil {
 		logger.Error.Fatalln("Error listening:", err.Error())
 		os.Exit(1)
